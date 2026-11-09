@@ -263,6 +263,7 @@ export function App() {
       <div className="dark">
         <ModoTvView
           processos={processos}
+          contratos={contratos}
           configTv={configTv}
           onAtualizarConfigTv={handleAtualizarConfigTv}
           onSairModoTv={() => setModoTvAtivo(false)}
@@ -289,9 +290,9 @@ export function App() {
         'Consulta centralizada complementar ao E-Docs, com filtros, sigilo e trilha de auditoria',
     },
     kanban: {
-      titulo: 'Quadro Kanban Operacional (M3)',
+      titulo: 'Painel Híbrido de Fluxo Operacional e Execução Mensal (M3)',
       subtitulo:
-        'Fluxo visual por etapas internas · Arraste e solte os cards para movimentar processos',
+        'Quadro de Ações por Gatilhos da Planilha (Renovação, CNDs, Empenho) + Mapa de Execução Financeira Jan–Dez',
     },
     prazos: {
       titulo: 'Monitoramento de Prazos e Inatividade Interna (M4)',
@@ -394,7 +395,7 @@ export function App() {
               >
                 <span className="flex items-center gap-3">
                   <Columns3 className="h-4 w-4" />
-                  M3 · Quadro Kanban
+                  M3 · Fluxo & Execução
                 </span>
               </button>
 
@@ -523,8 +524,8 @@ export function App() {
       {/* Área Principal à Direita */}
       <div className="flex flex-1 flex-col min-w-0">
         {/* Topbar Executiva */}
-        <header className="border-b border-slate-200/90 bg-white px-6 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <header className="border-b border-slate-200/90 bg-white px-6 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:px-8">
+          <div className="flex w-full flex-col justify-between gap-4 xl:flex-row xl:items-center">
             <div>
               <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                 {infoModulo[abaAtiva].titulo}
@@ -664,8 +665,8 @@ export function App() {
           </div>
         </header>
 
-        {/* Conteúdo Principal */}
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+        {/* Conteúdo Principal — Largura Total Fluida */}
+        <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {abaAtiva === 'dashboard' && (
             <DashboardView
               processos={processos}
@@ -689,6 +690,7 @@ export function App() {
           {abaAtiva === 'kanban' && (
             <KanbanView
               processos={processos}
+              contratos={contratos}
               configTv={configTv}
               perfilAtual={perfilAtual}
               onSelecionarProcesso={handleAbrirModal}
@@ -724,8 +726,8 @@ export function App() {
         </main>
 
         {/* Rodapé */}
-        <footer className="border-t border-slate-200/80 bg-white px-6 py-3.5 text-xs text-slate-500 dark:border-slate-900 dark:bg-slate-950 dark:text-slate-500">
-          <div className="mx-auto flex max-w-7xl flex-col justify-between gap-2 sm:flex-row sm:items-center">
+        <footer className="border-t border-slate-200/80 bg-white px-6 py-3.5 text-xs text-slate-500 dark:border-slate-900 dark:bg-slate-950 dark:text-slate-500 lg:px-8">
+          <div className="flex w-full flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <span>
               <strong>SLC Digital</strong> · IPAJM — Gerência de Tecnologia da
               Informação (GTI) &amp; Subgerência de Licitações e Contratos (SLC)

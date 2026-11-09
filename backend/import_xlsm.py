@@ -388,55 +388,80 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM):
                 db.add(modelo)
                 contratos_importados.append(modelo)
 
-                # Além do Contrato, verificar se o contrato está próximo do vencimento (<= 180 dias)
-                # ou com processo de pagamento/renovação ativo na planilha para popular o acompanhamento de Processos da SLC
+                # Como a SLC controla todos os processos E-Docs diretamente por esta planilha,
+                # sincronizamos cada contrato vigente como um Processo acompanhado em M2 / Kanban / Prazos:
                 try:
                     dias_fim = int(float(g_row.get("DN", "999")))
                 except Exception:
                     dias_fim = 999
 
-                if dias_fim <= 180:
-                    if dias_fim <= 45:
-                        prioridade = "Crítica"
-                        situacao = "Em elaboração"
-                        pendencia = f"Vencimento em {dias_fim} dias ({ 'Prorrogável - instruir Aditivo' if prorrogavel_flag else 'Não Prorrogável - Nova Contratação' })"
-                    elif dias_fim <= 90:
-                        prioridade = "Alta"
-                        situacao = "Em análise"
-                        pendencia = f"Janela de 90 dias ({dias_fim}d restantes) — consultar setor {setor_sigla}"
-                    else:
-                        prioridade = "Média"
-                        situacao = "Recebido pela SLC"
-                        pendencia = f"Monitoramento preventivo de vigência ({dias_fim}d restantes)"
+                # Verificar se alguma CND está vencida
+                cnd_vencida = False
+                for c_info in cnds_dict.values():
+                    v_dt = c_info.get("validade", "")
+                    if len(v_dt) == 10 and v_dt < datetime.now().strftime("%Y-%m-%d"):
+                        cnd_vencida = True
 
+                if dias_fim <= 45:
+                    prioridade = "Crítica"
+                    situacao = "Em elaboração"
+                    pendencia = f"Vencimento crítico em {dias_fim} dias ({'Prorrogável - instruir Aditivo' if prorrogavel_flag else 'Não Prorrogável - Nova Contratação'})"
+                elif dias_fim <= 90:
+                    prioridade = "Alta"
+                    situacao = "Em análise"
+                    pendencia = f"Janela de 90 dias ({dias_fim}d restantes) — consultar setor {setor_sigla} ({'Prorrogação' if prorrogavel_flag else 'Nova Licitação'})"
+                elif dias_fim <= 180:
+                    prioridade = "Média"
+                    situacao = "Recebido pela SLC"
+                    pendencia = f"Janela preventiva de 180 dias ({dias_fim}d restantes)"
+                elif cnd_vencida or status_garantia == "Pendente de Renovação":
+                    prioridade = "Alta"
+                    situacao = "Aguardando documentação"
+                    pendencia = "Atualizar Certidão Negativa (CND) / endosso de garantia no E-Docs"
+                elif proc_pagto and total_gasto > 0:
+                    prioridade = "Baixa"
+                    situacao = "Em andamento externo"
+                    pendencia = f"Execução mensal 2026 ativa (Proc. Pagto {proc_pagto} · Saldo R$ {saldo_empenho:,.2f})"
+                else:
+                    prioridade = "Baixa"
+                    situacao = "Concluído"
+                    pendencia = f"Contrato vigente regular ({dias_fim}d restantes)"
+
+                if dias_fim <= 180:
                     cat_proc = (
                         "Aditivo / Prorrogação / Apostilamento"
                         if prorrogavel_flag
                         else ("Contratação Direta (Dispensa/Inexig.)" if mod_sigla in ("I", "D") else "Licitação (Pregão/Concorrência)")
                     )
+                elif mod_sigla in ("I", "D"):
+                    cat_proc = "Contratação Direta (Dispensa/Inexig.)"
+                elif mod_sigla in ("P", "CO", "RP"):
+                    cat_proc = "Licitação (Pregão/Concorrência)"
+                else:
+                    cat_proc = "Formalização de Contrato"
 
-                    proc_id = f"proc-{aba_nome.lower()}"
-                    proc = ProcessoModel(
-                        id=proc_id,
-                        codigo_interno=f"SLC-2026-{len(processos_importados)+1:03d}",
-                        numero_edocs=proc_mae if proc_mae != "S/N" else proc_pagto,
-                        assunto=f"{empresa_curta} — {objeto_resumo} (Contrato {num_contrato})",
-                        objeto_detalhado=f"{objeto_completo} | Processo Pagto: {proc_pagto} | ID TCES: {id_tces or 'N/A'}",
-                        categoria=cat_proc,
-                        setor_demandante=setor_nome,
-                        responsavel=gestor if gestor != "Não designado" else "Equipe SLC",
-                        data_entrada=inicio_iso,
-                        situacao=situacao,
-                        prioridade=prioridade,
-                        prazo=termino_iso,
-                        atualizado_em=datetime.now().isoformat(),
-                        observacoes_internas=f"Importado da aba '{aba_nome}' (CONTROLE_CONTRATOS-2026_B.xlsm). Empenho: R$ {empenho_total:,.2f} | Saldo: R$ {saldo_empenho:,.2f}.",
-                        pendencia_atual=pendencia,
-                        restrito_tv=False,
-                        link_edocs="https://edocs.es.gov.br/",
-                    )
-                    db.add(proc)
-                    processos_importados.append(proc)
+                proc_id = f"proc-{aba_nome.lower() if aba_nome else r_idx}"
+                proc = ProcessoModel(
+                    id=proc_id,
+                    codigo_interno=f"SLC-2026-{len(processos_importados)+1:03d}",
+                    numero_edocs=proc_pagto if proc_pagto else proc_mae,
+                    assunto=f"{empresa_curta} — {objeto_resumo} (Contrato {num_contrato})",
+                    objeto_detalhado=f"{objeto_completo} | Processo Mãe: {proc_mae} | Processo Pagto: {proc_pagto or '—'} | ID TCES: {id_tces or 'N/A'}",
+                    categoria=cat_proc,
+                    setor_demandante=setor_nome,
+                    responsavel=fiscal_tit if fiscal_tit != "Não designado" else gestor,
+                    data_entrada=inicio_iso,
+                    situacao=situacao,
+                    prioridade=prioridade,
+                    prazo=termino_iso,
+                    atualizado_em=datetime.now().isoformat(),
+                    observacoes_internas=f"Aba '{aba_nome}' (CONTROLE_CONTRATOS-2026_B.xlsm). Gestor: {gestor} | Fiscal: {fiscal_tit}. Empenho: R$ {empenho_total:,.2f} | Gasto: R$ {total_gasto:,.2f} | Saldo: R$ {saldo_empenho:,.2f}.",
+                    pendencia_atual=pendencia,
+                    restrito_tv=False,
+                    link_edocs="https://edocs.es.gov.br/",
+                )
+                db.add(proc)
+                processos_importados.append(proc)
 
             db.commit()
             print(f"Sucesso! {len(contratos_importados)} contratos vigentes e {len(processos_importados)} processos críticos/em janela de renovação importados da planilha XLSM.")
