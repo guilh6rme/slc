@@ -87,8 +87,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const itens = processos.filter((p) => p.situacao === etapa);
     const nomeCurto = etapa
       .replace('Recebido pela SLC', 'Recebido')
-      .replace('Aguardando documentação', 'Ag. Doc.')
-      .replace('Aguardando aprovação', 'Ag. Aprov.')
+      .replace('Aguardando documentação', 'Ag. doc.')
+      .replace('Aguardando aprovação', 'Ag. aprov.')
       .replace('Em andamento externo', 'Externo');
     return {
       etapa: nomeCurto,
@@ -97,7 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   });
 
-  // Dados para o Gráfico de Rosca por Categoria
+  // Dados para o gráfico de rosca por categoria
   const dadosPorCategoria = CATEGORIAS_SLC.map((cat) => {
     const qtd = processos.filter((p) => p.categoria === cat).length;
     const nomeCurto = cat.split(' (')[0];
@@ -140,7 +140,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return Array.from(mapaMeses.values());
   }, [processos]);
 
-  const responsaveisCadastrados = obterListaResponsaveisUnicos(processos);
+  const rankingResponsaveisAtivos = React.useMemo(() => {
+    const lista = obterListaResponsaveisUnicos(processos).map((srv) => {
+      const qtdAtivos = ativos.filter((p) => p.responsavel === srv).length;
+      const qtdTotal = processos.filter((p) => p.responsavel === srv).length;
+      const qtdCriticos = ativos.filter(
+        (p) => p.responsavel === srv && p.prioridade === 'Crítica'
+      ).length;
+      return { srv, qtdAtivos, qtdTotal, qtdCriticos };
+    });
+
+    return lista
+      .filter((item) => item.qtdAtivos > 0)
+      .sort((a, b) => b.qtdAtivos - a.qtdAtivos || b.qtdTotal - a.qtdTotal);
+  }, [processos, ativos]);
 
   const processosAtencao = ativos
     .filter(
@@ -153,7 +166,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* KPIs Executivos */}
+      {/* KPIs executivos */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div
           onClick={() => onIrParaAba('processos')}
@@ -162,7 +175,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-blue-600" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Processos Ativos
+              Processos ativos
             </span>
             <div className="rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400">
               <FolderKanban className="h-4 w-4" />
@@ -188,7 +201,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-amber-500" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Ag. Providência
+              Ag. providência
             </span>
             <div className="rounded-xl bg-amber-50 p-2 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
               <Clock className="h-4 w-4" />
@@ -209,7 +222,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-rose-600" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
-              Prazos Críticos
+              Prazos críticos
             </span>
             <div className="rounded-xl bg-rose-100 p-2 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
               <Flame className="h-4 w-4" />
@@ -235,7 +248,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-sky-500" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Sem Atualização (&gt;{configTv.diasAlertaInatividade}d)
+              Sem atualização (&gt;{configTv.diasAlertaInatividade}d)
             </span>
             <div className="rounded-xl bg-sky-50 p-2 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400">
               <AlertTriangle className="h-4 w-4" />
@@ -268,9 +281,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Linha Principal de Gráficos Recharts */}
+      {/* Linha principal de gráficos recharts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Gráfico 1: Barras por Etapa do Fluxo Interno */}
+        {/* Gráfico 1: Barras por etapa do fluxo interno */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:col-span-7">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -279,7 +292,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Volume de Processos por Etapa Interna
+                  Volume de processos por etapa interna
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Distribuição real dos processos cadastrados no sistema
@@ -290,7 +303,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               onClick={() => onIrParaAba('kanban')}
               className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-400 dark:hover:bg-blue-500/25"
             >
-              Abrir Kanban <ArrowUpRight className="h-3.5 w-3.5" />
+              Abrir kanban <ArrowUpRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
@@ -339,7 +352,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Gráfico 2: Rosca por Categoria */}
+        {/* Gráfico 2: Rosca por categoria */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:col-span-5">
           <div className="flex items-center gap-2.5">
             <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
@@ -347,7 +360,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Distribuição por Categoria
+                Distribuição por categoria
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Classificação dos processos cadastrados
@@ -422,9 +435,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Segunda Linha: Evolução Mensal + Carga por Servidor */}
+      {/* Segunda linha: Evolução mensal + carga por servidor */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Evolução Mensal Recebidos vs Concluídos */}
+        {/* Evolução mensal recebidos vs concluídos */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:col-span-7">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -433,7 +446,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Fluxo Mensal: Recebidos vs. Concluídos
+                  Fluxo mensal: Recebidos vs. Concluídos
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Calculado com base na data de entrada dos processos registrados
@@ -515,8 +528,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Distribuição por Servidor Responsável */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:col-span-5">
+        {/* Distribuição por servidor responsável */}
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:col-span-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="rounded-xl bg-slate-100 p-2 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -524,26 +537,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Processos Ativos por Responsável
+                  Processos ativos por responsável
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Servidores vinculados aos processos cadastrados
+                  Ranking de gestores com processos ativos ({rankingResponsaveisAtivos.length})
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 space-y-3">
-            {responsaveisCadastrados.length === 0 ? (
+          <div className="mt-4 max-h-52 space-y-2.5 overflow-y-auto pr-1.5">
+            {rankingResponsaveisAtivos.length === 0 ? (
               <p className="py-10 text-center text-xs text-slate-400">
-                Nenhum responsável vinculado ainda. Cadastre um processo para visualizar.
+                Nenhum responsável com processo ativo no momento.
               </p>
             ) : (
-              responsaveisCadastrados.map((srv) => {
-                const qtdAtivos = ativos.filter((p) => p.responsavel === srv).length;
-                const qtdCriticos = ativos.filter(
-                  (p) => p.responsavel === srv && p.prioridade === 'Crítica'
-                ).length;
+              rankingResponsaveisAtivos.map(({ srv, qtdAtivos, qtdCriticos }) => {
                 const pct = Math.min(
                   100,
                   Math.round((qtdAtivos / Math.max(1, ativos.length)) * 100)
@@ -551,13 +560,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 return (
                   <div
                     key={srv}
-                    className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800/90 dark:bg-slate-950/50"
+                    className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5 dark:border-slate-800/90 dark:bg-slate-950/50"
                   >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate font-semibold text-slate-800 dark:text-slate-200">
                         {srv}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex shrink-0 items-center gap-1.5">
                         {qtdCriticos > 0 && (
                           <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
                             {qtdCriticos} crítico(s)
@@ -568,10 +577,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </span>
                       </div>
                     </div>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                       <div
                         className="h-full rounded-full bg-blue-600"
-                        style={{ width: `${Math.max(pct, qtdAtivos > 0 ? 12 : 0)}%` }}
+                        style={{ width: `${Math.max(pct, 12)}%` }}
                       />
                     </div>
                   </div>
@@ -582,12 +591,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Tabela de Atenção Imediata */}
+      {/* Tabela de atenção imediata */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Fila de Atenção Prioritária (Críticos e Prazos Sensíveis)
+              Fila de atenção prioritária (críticos e prazos sensíveis)
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Clique sobre qualquer processo para abrir a ficha detalhada e a trilha de
@@ -607,7 +616,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <thead>
               <tr className="border-b border-slate-200 text-xs font-bold uppercase text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 <th className="pb-3 pr-4">E-Docs</th>
-                <th className="pb-3 pr-4">Assunto / Setor Demandante</th>
+                <th className="pb-3 pr-4">Assunto / Setor demandante</th>
                 <th className="pb-3 pr-4">Situação</th>
                 <th className="pb-3 pr-4">Prioridade</th>
                 <th className="pb-3 pr-4">Prazo</th>

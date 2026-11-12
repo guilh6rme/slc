@@ -5,8 +5,6 @@ import {
   Columns3,
   ClockAlert,
   Tv,
-  Shield,
-  Plus,
   Database,
   Sun,
   Moon,
@@ -15,12 +13,13 @@ import {
   Building2,
   FileSignature,
   FileBarChart2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import {
   ConfiguracaoTV,
   ContratoSLC,
   HistoricoAlteracao,
-  PerfilUsuario,
   ProcessoSLC,
   SituacaoProcesso,
 } from './types/slc';
@@ -64,8 +63,8 @@ type AbaAtiva =
 export function App() {
   const [abaAtiva, setAbaAtiva] = useState<AbaAtiva>('dashboard');
   const [modoTvAtivo, setModoTvAtivo] = useState<boolean>(false);
-  const [perfilAtual, setPerfilAtual] = useState<PerfilUsuario>('GESTOR_SLC');
   const [temaEscuro, setTemaEscuro] = useState<boolean>(false);
+  const [sidebarRecolhida, setSidebarRecolhida] = useState<boolean>(false);
 
   const [processos, setProcessos] = useState<ProcessoSLC[]>([]);
   const [contratos, setContratos] = useState<ContratoSLC[]>([]);
@@ -77,7 +76,7 @@ export function App() {
     swaggerUrl: 'http://localhost:8000/docs',
   });
 
-  // Estado dos Modais
+  // Estado dos modais
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [modoModal, setModoModal] = useState<'detalhes' | 'editar' | 'novo'>('detalhes');
   const [processoSelecionado, setProcessoSelecionado] =
@@ -119,11 +118,7 @@ export function App() {
     }
   }, [temaEscuro]);
 
-  const nomeUsuarioPorPerfil: Record<PerfilUsuario, string> = {
-    GESTOR_SLC: 'Gestor SLC',
-    SERVIDOR_SLC: 'Servidor SLC',
-    CONSULTA: 'Consulta Interna',
-  };
+  const autorPadrao = 'Equipe SLC';
 
   const responsaveisSugeridos = useMemo(
     () => obterListaResponsaveisUnicos(processos),
@@ -140,7 +135,7 @@ export function App() {
   };
 
   const handleSalvarProcesso = (dados: ProcessoSLC, isNovo: boolean) => {
-    const autor = nomeUsuarioPorPerfil[perfilAtual];
+    const autor = autorPadrao;
 
     if (isNovo) {
       const novaLista = [dados, ...processos];
@@ -214,7 +209,7 @@ export function App() {
   };
 
   const handleImportarProcessosPlanilha = (novos: ProcessoSLC[]) => {
-    const autor = nomeUsuarioPorPerfil[perfilAtual];
+    const autor = autorPadrao;
     const novaLista = [...novos, ...processos];
     setProcessos(novaLista);
     salvarProcessos(novaLista);
@@ -280,32 +275,32 @@ export function App() {
 
   const infoModulo: Record<AbaAtiva, { titulo: string; subtitulo: string }> = {
     dashboard: {
-      titulo: 'Painel Gerencial da SLC (M1)',
+      titulo: 'Painel gerencial',
       subtitulo:
         'Visão consolidada de indicadores, gargalos por etapa e distribuição operacional',
     },
     processos: {
-      titulo: 'Cadastro e Acompanhamento de Processos (M2)',
+      titulo: 'Cadastro e acompanhamento de processos',
       subtitulo:
         'Consulta centralizada complementar ao E-Docs, com filtros, sigilo e trilha de auditoria',
     },
-    kanban: {
-      titulo: 'Painel Híbrido de Fluxo Operacional e Execução Mensal (M3)',
-      subtitulo:
-        'Quadro de Ações por Gatilhos da Planilha (Renovação, CNDs, Empenho) + Mapa de Execução Financeira Jan–Dez',
-    },
-    prazos: {
-      titulo: 'Monitoramento de Prazos e Inatividade Interna (M4)',
-      subtitulo:
-        'Controle proativo de vencimentos críticos e processos sem atualização recente',
-    },
     contratos: {
-      titulo: 'Gestão de Contratos, Vigências, Saldos e Fiscais (M5)',
+      titulo: 'Gestão de contratos, vigências, saldos e fiscais',
       subtitulo:
         'Acompanhamento de prorrogações, apostilamentos, garantias e designação de gestores/fiscais',
     },
+    kanban: {
+      titulo: 'Painel híbrido de fluxo operacional e execução mensal',
+      subtitulo:
+        'Quadro de ações por gatilhos da planilha (renovação, CNDs, empenho) + mapa de execução financeira jan–dez',
+    },
+    prazos: {
+      titulo: 'Monitoramento de prazos e inatividade interna',
+      subtitulo:
+        'Controle proativo de vencimentos críticos e processos sem atualização recente',
+    },
     relatorios: {
-      titulo: 'Relatórios Gerenciais e Exportação de Dados (M6)',
+      titulo: 'Relatórios gerenciais e exportação de dados',
       subtitulo:
         'Consolidação por setor demandante, tempo de tramitação e exportação em CSV/Excel',
     },
@@ -313,7 +308,7 @@ export function App() {
 
   return (
     <div className="flex min-h-screen bg-slate-100/80 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      {/* Toast Flutuante de Confirmação */}
+      {/* Toast flutuante de confirmação */}
       {toastMsg && (
         <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-2xl border border-emerald-500/40 bg-slate-900 px-4 py-3 text-xs font-semibold text-white shadow-2xl">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -321,209 +316,309 @@ export function App() {
         </div>
       )}
 
-      {/* Sidebar Institucional (Gov.ES / IPAJM Navy) */}
-      <aside className="hidden w-72 shrink-0 flex-col justify-between bg-[#0B2239] text-slate-100 lg:flex">
+      {/* Sidebar institucional (Gov.ES / IPAJM Navy) */}
+      <aside
+        className={`hidden shrink-0 flex-col justify-between bg-[#0B2239] text-slate-100 transition-all duration-200 lg:flex ${
+          sidebarRecolhida ? 'w-20' : 'w-72'
+        }`}
+      >
         <div>
-          {/* Identidade Institucional */}
-          <div className="border-b border-white/10 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-sky-400 text-base font-black text-white shadow-lg shadow-blue-500/30">
-                SLC
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-extrabold tracking-tight text-white">
-                    SLC Digital
-                  </span>
+          {/* Identidade institucional + Botão Recolher/Expandir */}
+          <div
+            className={`border-b border-white/10 ${
+              sidebarRecolhida ? 'px-3 py-4' : 'px-6 py-5'
+            }`}
+          >
+            <div
+              className={`flex items-center ${
+                sidebarRecolhida ? 'flex-col gap-3' : 'justify-between gap-3'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  title="SLC Digital · IPAJM"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-sky-400 text-base font-black text-white shadow-lg shadow-blue-500/30"
+                >
+                  SLC
                 </div>
-                <p className="text-[11px] font-medium text-slate-300/80">
-                  IPAJM · Governo do Estado do ES
-                </p>
+                {!sidebarRecolhida && (
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-lg font-extrabold tracking-tight text-white">
+                        SLC digital
+                      </span>
+                    </div>
+                    <p className="truncate text-[11px] font-medium text-slate-300/80">
+                      IPAJM · Governo do Estado do ES
+                    </p>
+                  </div>
+                )}
               </div>
+
+              <button
+                onClick={() => setSidebarRecolhida((v) => !v)}
+                title={
+                  sidebarRecolhida
+                    ? 'Expandir menu lateral'
+                    : 'Recolher menu lateral (apenas ícones)'
+                }
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/15 hover:text-white"
+              >
+                {sidebarRecolhida ? (
+                  <PanelLeftOpen className="h-4 w-4" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" />
+                )}
+              </button>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-[11px] text-slate-300">
-              <Building2 className="h-4 w-4 shrink-0 text-sky-400" />
-              <span>GTI · Subgerência de Licitações e Contratos</span>
-            </div>
+            {!sidebarRecolhida && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-[11px] text-slate-300">
+                <Building2 className="h-4 w-4 shrink-0 text-sky-400" />
+                <span>SLC · Subgerência de Licitações e Contratos</span>
+              </div>
+            )}
           </div>
 
-          {/* Menu de Navegação (M1 a M6) */}
-          <div className="px-4 py-5">
-            <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Módulos do Sistema (M1–M6)
-            </div>
-            <nav className="space-y-1">
+          {/* Menu de navegação (M1 a M6) */}
+          <div className={sidebarRecolhida ? 'px-2.5 py-4' : 'px-4 py-5'}>
+            {!sidebarRecolhida && (
+              <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Módulos do sistema
+              </div>
+            )}
+            <nav className="space-y-1.5">
               <button
                 onClick={() => setAbaAtiva('dashboard')}
-                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                title="M1 · Dashboard"
+                className={`relative flex w-full items-center rounded-xl text-xs font-bold transition ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-2.5'
+                } ${
                   abaAtiva === 'dashboard'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <LayoutDashboard className="h-4 w-4" />
-                  M1 · Dashboard Gerencial
+                  <LayoutDashboard className="h-4 w-4 shrink-0" />
+                  {!sidebarRecolhida && <span>M1 · Dashboard</span>}
                 </span>
               </button>
 
               <button
                 onClick={() => setAbaAtiva('processos')}
-                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                title={`M2 · Processos (${processos.length})`}
+                className={`relative flex w-full items-center rounded-xl text-xs font-bold transition ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-2.5'
+                } ${
                   abaAtiva === 'processos'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  M2 · Processos da SLC
+                  <FileSpreadsheet className="h-4 w-4 shrink-0" />
+                  {!sidebarRecolhida && <span>M2 · Processos</span>}
                 </span>
-                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-extrabold text-white">
-                  {processos.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setAbaAtiva('kanban')}
-                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
-                  abaAtiva === 'kanban'
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <Columns3 className="h-4 w-4" />
-                  M3 · Fluxo & Execução
-                </span>
-              </button>
-
-              <button
-                onClick={() => setAbaAtiva('prazos')}
-                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
-                  abaAtiva === 'prazos'
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <ClockAlert className="h-4 w-4" />
-                  M4 · Prazos e Pendências
-                </span>
-                {qtdAlertasPrazo > 0 && (
-                  <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-extrabold text-white">
-                    {qtdAlertasPrazo}
+                {!sidebarRecolhida && (
+                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-extrabold text-white">
+                    {processos.length}
                   </span>
                 )}
               </button>
 
               <button
                 onClick={() => setAbaAtiva('contratos')}
-                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                title={`M3 · Contratos (${contratos.length})`}
+                className={`relative flex w-full items-center rounded-xl text-xs font-bold transition ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-2.5'
+                } ${
                   abaAtiva === 'contratos'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <FileSignature className="h-4 w-4" />
-                  M5 · Contratos e Fiscais
+                  <FileSignature className="h-4 w-4 shrink-0" />
+                  {!sidebarRecolhida && <span>M3 · Contratos</span>}
                 </span>
-                <span className="rounded-full bg-emerald-500/25 px-2 py-0.5 text-[11px] font-extrabold text-emerald-300">
-                  {contratos.length}
+                {!sidebarRecolhida && (
+                  <span className="rounded-full bg-emerald-500/25 px-2 py-0.5 text-[11px] font-extrabold text-emerald-300">
+                    {contratos.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setAbaAtiva('kanban')}
+                title="M4 · Fluxo e execução"
+                className={`relative flex w-full items-center rounded-xl text-xs font-bold transition ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-2.5'
+                } ${
+                  abaAtiva === 'kanban'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <Columns3 className="h-4 w-4 shrink-0" />
+                  {!sidebarRecolhida && <span>M4 · Fluxo e execução</span>}
                 </span>
               </button>
 
               <button
+                onClick={() => setAbaAtiva('prazos')}
+                title={`M5 · Prazos e pendências (${qtdAlertasPrazo})`}
+                className={`relative flex w-full items-center rounded-xl text-xs font-bold transition ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-2.5'
+                } ${
+                  abaAtiva === 'prazos'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <ClockAlert className="h-4 w-4 shrink-0" />
+                  {!sidebarRecolhida && <span>M5 · Prazos e pendências</span>}
+                </span>
+                {!sidebarRecolhida && qtdAlertasPrazo > 0 && (
+                  <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-extrabold text-white">
+                    {qtdAlertasPrazo}
+                  </span>
+                )}
+                {sidebarRecolhida && qtdAlertasPrazo > 0 && (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-[#0B2239]" />
+                )}
+              </button>
+
+              <button
                 onClick={() => setAbaAtiva('relatorios')}
-                className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                title="M6 · Relatórios e CSV"
+                className={`relative flex w-full items-center rounded-xl text-xs font-bold transition ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-2.5'
+                } ${
                   abaAtiva === 'relatorios'
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <FileBarChart2 className="h-4 w-4" />
-                  M6 · Relatórios e CSV
+                  <FileBarChart2 className="h-4 w-4 shrink-0" />
+                  {!sidebarRecolhida && <span>M6 · Relatórios e CSV</span>}
                 </span>
               </button>
             </nav>
 
-            {/* Ações Rápidas na Sidebar */}
-            <div className="mt-6 mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Monitoramento (M7) e Importação
-            </div>
+            {/* Ações rápidas na sidebar */}
+            {!sidebarRecolhida ? (
+              <div className="mt-6 mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Monitoramento e importação
+              </div>
+            ) : (
+              <div className="my-3 border-t border-white/10" />
+            )}
             <div className="space-y-2">
               <button
                 onClick={() => setModoTvAtivo(true)}
-                className="flex w-full items-center justify-between rounded-xl border border-sky-400/30 bg-gradient-to-r from-blue-600/30 to-sky-500/20 px-3.5 py-3 text-xs font-bold text-white transition hover:border-sky-400/60"
+                title="Modo TV (16:9)"
+                className={`flex w-full items-center rounded-xl border border-sky-400/30 bg-gradient-to-r from-blue-600/30 to-sky-500/20 text-xs font-bold text-white transition hover:border-sky-400/60 ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'justify-between px-3.5 py-3'
+                }`}
               >
                 <span className="flex items-center gap-2.5">
-                  <Tv className="h-4 w-4 text-sky-300" />
-                  M7 · Modo TV (1 TV · 3 Telas)
+                  <Tv className="h-4 w-4 shrink-0 text-sky-300" />
+                  {!sidebarRecolhida && <span>Modo TV</span>}
                 </span>
-                <span className="rounded bg-sky-400/20 px-1.5 py-0.5 text-[10px] text-sky-200">
-                  16:9
-                </span>
+                {!sidebarRecolhida && (
+                  <span className="rounded bg-sky-400/20 px-1.5 py-0.5 text-[10px] text-sky-200">
+                    16:9
+                  </span>
+                )}
               </button>
 
-              {perfilAtual !== 'CONSULTA' && (
-                <button
-                  onClick={() => setImportadorAberto(true)}
-                  className="flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
-                >
-                  <Upload className="h-4 w-4 text-emerald-400" />
-                  Importar Planilha (.CSV)
-                </button>
-              )}
+              <button
+                onClick={() => setImportadorAberto(true)}
+                title="Importar planilha (.CSV)"
+                className={`flex w-full items-center rounded-xl border border-white/10 bg-white/5 text-xs font-semibold text-slate-200 transition hover:bg-white/10 ${
+                  sidebarRecolhida
+                    ? 'justify-center p-3'
+                    : 'gap-2.5 px-3.5 py-2.5'
+                }`}
+              >
+                <Upload className="h-4 w-4 shrink-0 text-emerald-400" />
+                {!sidebarRecolhida && <span>Importar planilha (.CSV)</span>}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Rodapé da Sidebar: Banco MySQL + Status FastAPI */}
-        <div className="border-t border-white/10 p-4 space-y-3">
-          <div className="rounded-xl bg-white/5 p-3 text-[11px] text-slate-300">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-bold text-sky-300">
-                <Database className="h-3.5 w-3.5" />
-                Arquitetura GTI · MySQL 8+
-              </span>
+        {/* Rodapé da sidebar: Banco MySQL + status FastAPI */}
+        <div
+          className={`border-t border-white/10 ${
+            sidebarRecolhida ? 'p-2.5' : 'p-4 space-y-3'
+          }`}
+        >
+          {sidebarRecolhida ? (
+            <div
+              title={`Arquitetura GTI · ${
+                statusApi.online ? 'FastAPI Online' : 'Modo Local'
+              } (${statusApi.modoBanco})`}
+              className="relative flex items-center justify-center rounded-xl bg-white/5 p-3 text-sky-300"
+            >
+              <Database className="h-4 w-4" />
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                  statusApi.online
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'bg-amber-500/20 text-amber-300'
+                className={`absolute right-2.5 top-2.5 h-2 w-2 rounded-full ring-2 ring-[#0B2239] ${
+                  statusApi.online ? 'bg-emerald-400' : 'bg-amber-400'
                 }`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    statusApi.online ? 'bg-emerald-400' : 'bg-amber-400'
-                  }`}
-                />
-                {statusApi.online ? 'FastAPI Online' : 'Modo Local'}
-              </span>
+              />
             </div>
-            <p className="mt-1 text-slate-400 leading-relaxed">
-              {statusApi.modoBanco}
-            </p>
-            {statusApi.online && (
-              <a
-                href={statusApi.swaggerUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-flex w-full items-center justify-center rounded-lg border border-sky-400/30 bg-sky-500/15 py-1 text-[11px] font-bold text-sky-200 hover:bg-sky-500/25"
-              >
-                Abrir Swagger API (/docs) ↗
-              </a>
-            )}
-          </div>
+          ) : (
+            <div className="rounded-xl bg-white/5 p-3 text-[11px] text-slate-300">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-bold text-sky-300">
+                  <Database className="h-3.5 w-3.5" />
+                  Arquitetura GTI
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    statusApi.online
+                      ? 'bg-emerald-500/20 text-emerald-300'
+                      : 'bg-amber-500/20 text-amber-300'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      statusApi.online ? 'bg-emerald-400' : 'bg-amber-400'
+                    }`}
+                  />
+                  {statusApi.online ? 'FastAPI Online' : 'Modo Local'}
+                </span>
+              </div>
+              <p className="mt-1 text-slate-400 leading-relaxed">
+                {statusApi.modoBanco}
+              </p>
+            </div>
+          )}
         </div>
       </aside>
 
-      {/* Área Principal à Direita */}
+      {/* Área principal à direita */}
       <div className="flex flex-1 flex-col min-w-0">
-        {/* Topbar Executiva */}
+        {/* Topbar executiva */}
         <header className="border-b border-slate-200/90 bg-white px-6 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:px-8">
           <div className="flex w-full flex-col justify-between gap-4 xl:flex-row xl:items-center">
             <div>
@@ -536,7 +631,7 @@ export function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Alternador Tema Claro / Escuro */}
+              {/* Alternador tema claro / escuro */}
               <button
                 onClick={() => setTemaEscuro((v) => !v)}
                 title="Alternar entre Tema Claro Institucional e Tema Escuro"
@@ -544,63 +639,26 @@ export function App() {
               >
                 {temaEscuro ? (
                   <>
-                    <Sun className="h-4 w-4 text-amber-400" /> Tema Claro
+                    <Sun className="h-4 w-4 text-amber-400" /> Tema claro
                   </>
                 ) : (
                   <>
-                    <Moon className="h-4 w-4 text-slate-600" /> Tema Escuro
+                    <Moon className="h-4 w-4 text-slate-600" /> Tema escuro
                   </>
                 )}
               </button>
-
-              {/* Seletor de Perfil */}
-              <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-950">
-                <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                    Perfil de Acesso
-                  </span>
-                  <select
-                    value={perfilAtual}
-                    onChange={(e) =>
-                      setPerfilAtual(e.target.value as PerfilUsuario)
-                    }
-                    className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none dark:text-slate-200"
-                  >
-                    <option value="GESTOR_SLC" className="bg-white dark:bg-slate-900">
-                      Gestor SLC (Completo)
-                    </option>
-                    <option value="SERVIDOR_SLC" className="bg-white dark:bg-slate-900">
-                      Servidor SLC (Operacional)
-                    </option>
-                    <option value="CONSULTA" className="bg-white dark:bg-slate-900">
-                      Consulta (Leitura)
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              {perfilAtual !== 'CONSULTA' && (
-                <button
-                  onClick={() => handleAbrirModal(null, 'novo')}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-500"
-                >
-                  <Plus className="h-4 w-4" />
-                  Novo Processo
-                </button>
-              )}
 
               <button
                 onClick={() => setModoTvAtivo(true)}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#0B2239] px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-slate-800 dark:bg-sky-600 dark:hover:bg-sky-500"
               >
                 <Tv className="h-4 w-4 text-sky-400 dark:text-white" />
-                Abrir Modo TV
+                Abrir modo TV
               </button>
             </div>
           </div>
 
-          {/* Navegação Mobile */}
+          {/* Navegação mobile */}
           <div className="mt-4 flex gap-2 overflow-x-auto border-t border-slate-200 pt-3 dark:border-slate-800 lg:hidden">
             <button
               onClick={() => setAbaAtiva('dashboard')}
@@ -623,6 +681,16 @@ export function App() {
               M2 · Processos ({processos.length})
             </button>
             <button
+              onClick={() => setAbaAtiva('contratos')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+                abaAtiva === 'contratos'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+              }`}
+            >
+              M3 · Contratos ({contratos.length})
+            </button>
+            <button
               onClick={() => setAbaAtiva('kanban')}
               className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
                 abaAtiva === 'kanban'
@@ -630,7 +698,7 @@ export function App() {
                   : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
               }`}
             >
-              M3 · Kanban
+              M4 · Fluxo e execução
             </button>
             <button
               onClick={() => setAbaAtiva('prazos')}
@@ -640,17 +708,7 @@ export function App() {
                   : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
               }`}
             >
-              M4 · Prazos ({qtdAlertasPrazo})
-            </button>
-            <button
-              onClick={() => setAbaAtiva('contratos')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
-                abaAtiva === 'contratos'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-              }`}
-            >
-              M5 · Contratos ({contratos.length})
+              M5 · Prazos ({qtdAlertasPrazo})
             </button>
             <button
               onClick={() => setAbaAtiva('relatorios')}
@@ -665,7 +723,7 @@ export function App() {
           </div>
         </header>
 
-        {/* Conteúdo Principal — Largura Total Fluida */}
+        {/* Conteúdo principal — Largura total fluida */}
         <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {abaAtiva === 'dashboard' && (
             <DashboardView
@@ -680,7 +738,6 @@ export function App() {
             <ProcessosView
               processos={processos}
               configTv={configTv}
-              perfilAtual={perfilAtual}
               onAbrirModal={handleAbrirModal}
               onAbrirImportador={() => setImportadorAberto(true)}
               onMudarSituacaoRapida={handleMudarSituacaoRapida}
@@ -692,7 +749,6 @@ export function App() {
               processos={processos}
               contratos={contratos}
               configTv={configTv}
-              perfilAtual={perfilAtual}
               onSelecionarProcesso={handleAbrirModal}
               onMoverEtapa={handleMudarSituacaoRapida}
             />
@@ -710,7 +766,6 @@ export function App() {
           {abaAtiva === 'contratos' && (
             <ContratosView
               contratos={contratos}
-              perfilAtual={perfilAtual}
               onSalvarContrato={handleSalvarContrato}
             />
           )}
@@ -729,30 +784,28 @@ export function App() {
         <footer className="border-t border-slate-200/80 bg-white px-6 py-3.5 text-xs text-slate-500 dark:border-slate-900 dark:bg-slate-950 dark:text-slate-500 lg:px-8">
           <div className="flex w-full flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <span>
-              <strong>SLC Digital</strong> · IPAJM — Gerência de Tecnologia da
-              Informação (GTI) &amp; Subgerência de Licitações e Contratos (SLC)
+              <strong>SLC Digital</strong> · IPAJM — Subgerência de Licitações e Contratos (SLC)
             </span>
             <span>
-              Camada complementar ao E-Docs · SGBD Padrão GTI: MySQL
+              Camada complementar ao E-Docs
             </span>
           </div>
         </footer>
       </div>
 
-      {/* Modal de Detalhes / Cadastro / Edição / Auditoria */}
+      {/* Modal de detalhes / Cadastro / Edição / Auditoria */}
       <ProcessoModal
         aberto={modalAberto}
         modoInicial={modoModal}
         processo={processoSelecionado}
         historico={historico}
-        perfilAtual={perfilAtual}
         responsaveisSugeridos={responsaveisSugeridos}
         onFechar={() => setModalAberto(false)}
         onSalvar={handleSalvarProcesso}
         onExcluir={handleExcluirProcesso}
       />
 
-      {/* Modal de Importação de Planilha CSV */}
+      {/* Modal de importação de planilha CSV */}
       <ImportarPlanilhaModal
         aberto={importadorAberto}
         onFechar={() => setImportadorAberto(false)}

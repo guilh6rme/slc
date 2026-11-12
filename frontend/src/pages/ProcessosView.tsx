@@ -14,12 +14,11 @@ import {
   CATEGORIAS_SLC,
   ConfiguracaoTV,
   ETAPAS_KANBAN,
-  PerfilUsuario,
   PrioridadeProcesso,
   ProcessoSLC,
   SituacaoProcesso,
 } from '../types/slc';
-import { PrazoBadge, PrioridadeBadge, SituacaoBadge } from '../components/StatusBadges';
+import { PrazoBadge, PrioridadeBadge } from '../components/StatusBadges';
 import {
   calcularDiasSemAtualizacao,
   obterListaResponsaveisUnicos,
@@ -28,7 +27,6 @@ import {
 interface ProcessosViewProps {
   processos: ProcessoSLC[];
   configTv: ConfiguracaoTV;
-  perfilAtual: PerfilUsuario;
   onAbrirModal: (p: ProcessoSLC | null, modo: 'detalhes' | 'editar' | 'novo') => void;
   onAbrirImportador: () => void;
   onMudarSituacaoRapida: (processo: ProcessoSLC, novaSituacao: SituacaoProcesso) => void;
@@ -37,7 +35,6 @@ interface ProcessosViewProps {
 export const ProcessosView: React.FC<ProcessosViewProps> = ({
   processos,
   configTv,
-  perfilAtual,
   onAbrirModal,
   onAbrirImportador,
   onMudarSituacaoRapida,
@@ -48,7 +45,6 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>('TODOS');
   const [filtroPrioridade, setFiltroPrioridade] = useState<string>('TODAS');
 
-  const podeEditar = perfilAtual !== 'CONSULTA';
   const responsaveisUnicos = useMemo(
     () => obterListaResponsaveisUnicos(processos),
     [processos]
@@ -97,7 +93,7 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Barra de Busca, Filtros e Botões */}
+      {/* Barra de busca, filtros e botões */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div className="relative flex-1">
@@ -116,26 +112,22 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              Limpar Filtros
+              Limpar filtros
             </button>
-            {podeEditar && (
-              <>
-                <button
-                  onClick={onAbrirImportador}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Importar CSV
-                </button>
-                <button
-                  onClick={() => onAbrirModal(null, 'novo')}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500"
-                >
-                  <Plus className="h-4 w-4" />
-                  Novo Processo
-                </button>
-              </>
-            )}
+            <button
+              onClick={onAbrirImportador}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Importar CSV
+            </button>
+            <button
+              onClick={() => onAbrirModal(null, 'novo')}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500"
+            >
+              <Plus className="h-4 w-4" />
+              Novo processo
+            </button>
           </div>
         </div>
 
@@ -217,7 +209,7 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
         </div>
       </div>
 
-      {/* Tabela de Processos */}
+      {/* Tabela de processos */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
           <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -301,26 +293,22 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4">
-                        {podeEditar ? (
-                          <select
-                            value={p.situacao}
-                            onChange={(e) =>
-                              onMudarSituacaoRapida(
-                                p,
-                                e.target.value as SituacaoProcesso
-                              )
-                            }
-                            className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                          >
-                            {ETAPAS_KANBAN.map((etapa) => (
-                              <option key={etapa} value={etapa}>
-                                {etapa}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <SituacaoBadge situacao={p.situacao} />
-                        )}
+                        <select
+                          value={p.situacao}
+                          onChange={(e) =>
+                            onMudarSituacaoRapida(
+                              p,
+                              e.target.value as SituacaoProcesso
+                            )
+                          }
+                          className="rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                        >
+                          {ETAPAS_KANBAN.map((etapa) => (
+                            <option key={etapa} value={etapa}>
+                              {etapa}
+                            </option>
+                          ))}
+                        </select>
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4">
@@ -352,15 +340,13 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          {podeEditar && (
-                            <button
-                              onClick={() => onAbrirModal(p, 'editar')}
-                              title="Editar processo"
-                              className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-600 hover:border-blue-500 hover:bg-blue-600 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-600"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => onAbrirModal(p, 'editar')}
+                            title="Editar processo"
+                            className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-600 hover:border-blue-500 hover:bg-blue-600 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-600"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
                           {p.linkEdocs && (
                             <a
                               href={p.linkEdocs}

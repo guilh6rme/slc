@@ -1,11 +1,11 @@
 export type CategoriaProcesso =
   | 'Licitação (Pregão/Concorrência)'
-  | 'Contratação Direta (Dispensa/Inexig.)'
-  | 'Formalização de Contrato'
+  | 'Contratação direta (Dispensa/Inexig.)'
+  | 'Formalização de contrato'
   | 'Aditivo / Prorrogação / Apostilamento'
-  | 'Pesquisa de Preços / ETP / TR'
-  | 'Designação de Gestor/Fiscal'
-  | 'Outros Processos Administrativos';
+  | 'Pesquisa de preços / ETP / TR'
+  | 'Designação de gestor/fiscal'
+  | 'Outros processos administrativos';
 
 export type SituacaoProcesso =
   | 'Recebido pela SLC'
@@ -17,8 +17,6 @@ export type SituacaoProcesso =
   | 'Concluído';
 
 export type PrioridadeProcesso = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
-
-export type PerfilUsuario = 'GESTOR_SLC' | 'SERVIDOR_SLC' | 'CONSULTA';
 
 export interface HistoricoAlteracao {
   id: string;
@@ -59,8 +57,8 @@ export interface ConfiguracaoTV {
 
 export type StatusGarantia =
   | 'Vigente'
-  | 'Pendente de Renovação'
-  | 'Isento / Não Exigida';
+  | 'Pendente de renovação'
+  | 'Isento / Não exigida';
 
 export interface CndItem {
   validade: string;
@@ -134,12 +132,12 @@ export interface ContratoSLC {
 
 export const CATEGORIAS_SLC: CategoriaProcesso[] = [
   'Licitação (Pregão/Concorrência)',
-  'Contratação Direta (Dispensa/Inexig.)',
-  'Formalização de Contrato',
+  'Contratação direta (Dispensa/Inexig.)',
+  'Formalização de contrato',
   'Aditivo / Prorrogação / Apostilamento',
-  'Pesquisa de Preços / ETP / TR',
-  'Designação de Gestor/Fiscal',
-  'Outros Processos Administrativos',
+  'Pesquisa de preços / ETP / TR',
+  'Designação de gestor/fiscal',
+  'Outros processos administrativos',
 ];
 
 export const ETAPAS_KANBAN: SituacaoProcesso[] = [

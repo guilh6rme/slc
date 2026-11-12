@@ -28,7 +28,6 @@ import {
   ContratoSLC,
   ETAPAS_KANBAN,
   ExecucaoMensalItem,
-  PerfilUsuario,
   ProcessoSLC,
   SituacaoProcesso,
 } from '../types/slc';
@@ -42,7 +41,6 @@ interface KanbanViewProps {
   processos: ProcessoSLC[];
   contratos?: ContratoSLC[];
   configTv: ConfiguracaoTV;
-  perfilAtual: PerfilUsuario;
   onSelecionarProcesso: (p: ProcessoSLC, modo: 'detalhes' | 'editar') => void;
   onMoverEtapa: (processo: ProcessoSLC, novaEtapa: SituacaoProcesso) => void;
 }
@@ -160,7 +158,6 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   processos,
   contratos = [],
   configTv,
-  perfilAtual,
   onSelecionarProcesso,
   onMoverEtapa,
 }) => {
@@ -172,7 +169,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   const [mostrarRegularesCompletos, setMostrarRegularesCompletos] =
     useState<boolean>(false);
 
-  // Estados específicos do Mapa de Execução Mensal (Jan-Dez)
+  // Estados específicos do mapa de execução mensal (Jan-Dez)
   const [mesReferencia, setMesReferencia] = useState<string>('Out');
   const [filtroExecucaoMensal, setFiltroExecucaoMensal] = useState<
     'TODOS' | 'PAGOS_MES' | 'PENDENTES_MES' | 'CND_VENCIDA' | 'REFORCO_EMPENHO'
@@ -181,7 +178,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     string | null
   >(null);
 
-  // Estados do Kanban E-Docs clássico (Modo 3)
+  // Estados do kanban E-Docs clássico (Modo 3)
   const [filtroCategoria, setFiltroCategoria] = useState<string>('TODAS');
   const [filtroResponsavel, setFiltroResponsavel] = useState<string>('TODOS');
   const [ocultarConcluidosKanban, setOcultarConcluidosKanban] =
@@ -191,9 +188,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   );
   const [colunaAlvo, setColunaAlvo] = useState<SituacaoProcesso | null>(null);
 
-  const podeEditar = perfilAtual !== 'CONSULTA';
-
-  // Mapa rápido numeroEdocs -> ProcessoSLC para vincular cada Contrato ao seu Processo
+  // Mapa rápido numeroEdocs -> ProcessoSLC para vincular cada contrato ao seu processo
   const mapaProcessoPorEdocs = useMemo(() => {
     const map = new Map<string, ProcessoSLC>();
     for (const p of processos) {
@@ -219,7 +214,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     return Array.from(s).sort();
   }, [contratos]);
 
-  // Filtro base de contratos para Modo 1 e Modo 2
+  // Filtro base de contratos para modo 1 e modo 2
   const contratosFiltradosBase = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     return contratos.filter((c) => {
@@ -433,14 +428,12 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent, proc: ProcessoSLC) => {
-    if (!podeEditar) return;
     e.dataTransfer.setData('text/plain', proc.id);
     e.dataTransfer.effectAllowed = 'move';
     setProcessoArrastandoId(proc.id);
   };
 
   const handleDragOver = (e: React.DragEvent, etapa: SituacaoProcesso) => {
-    if (!podeEditar) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (colunaAlvo !== etapa) {
@@ -453,7 +446,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     setColunaAlvo(null);
     const id = e.dataTransfer.getData('text/plain') || processoArrastandoId;
     setProcessoArrastandoId(null);
-    if (!id || !podeEditar) return;
+    if (!id) return;
     const proc = processos.find((p) => p.id === id);
     if (proc && proc.situacao !== etapaDestino) {
       onMoverEtapa(proc, etapaDestino);
@@ -470,7 +463,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     Concluído: 'bg-emerald-500',
   };
 
-  // Renderizador de Card de Ação da SLC (Modo 1)
+  // Renderizador de card de ação da SLC (Modo 1)
   const renderCardAcaoSLC = (
     item: {
       contrato: ContratoSLC;
@@ -528,12 +521,12 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             </span>
           </div>
 
-          {/* Número do Contrato com espaço total */}
+          {/* Número do contrato com espaço total */}
           <div className="mt-2 font-mono text-xs font-extrabold text-blue-600 dark:text-sky-400">
             CT {c.numeroContrato}
           </div>
 
-          {/* Credor e Objeto */}
+          {/* Credor e objeto */}
           <h4 className="mt-1 line-clamp-1 text-xs font-extrabold text-slate-900 dark:text-white">
             {c.empresaContratada}
           </h4>
@@ -541,7 +534,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             {c.objeto}
           </p>
 
-          {/* Gatilho Específico da Coluna */}
+          {/* Gatilho específico da coluna */}
           {tipoColuna === 'CRITICO' && (
             <div className="mt-2.5 rounded-lg border border-rose-200 bg-rose-50/90 px-2.5 py-2 text-[11px] dark:border-rose-500/30 dark:bg-rose-950/40">
               <div className="flex items-center justify-between font-extrabold text-rose-700 dark:text-rose-300">
@@ -577,7 +570,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           {tipoColuna === 'CND' && cndsVencidas.length > 0 && (
             <div className="mt-2.5 rounded-lg border border-orange-200 bg-orange-50/90 px-2.5 py-2 text-[11px] dark:border-orange-500/30 dark:bg-orange-950/40">
               <div className="font-extrabold text-orange-800 dark:text-orange-300">
-                {cndsVencidas.length} CND(s) Vencida(s):
+                {cndsVencidas.length} CND(s) vencida(s):
               </div>
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {cndsVencidas.map((cv) => (
@@ -616,11 +609,11 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             </div>
           )}
 
-          {/* Processos E-Docs vinculados (Mãe e Pagto) */}
+          {/* Processos E-Docs vinculados (mãe e pagto) */}
           <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[10px]">
             <div className="min-w-0 rounded border border-slate-200/80 bg-slate-50/70 px-2 py-1 dark:border-slate-800 dark:bg-slate-900/60">
               <span className="block text-[9px] font-bold uppercase text-slate-400">
-                Proc. Mãe
+                Proc. mãe
               </span>
               <span className="block truncate font-mono font-bold text-blue-600 dark:text-blue-400">
                 {c.numeroEdocs}
@@ -628,7 +621,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             </div>
             <div className="min-w-0 rounded border border-slate-200/80 bg-slate-50/70 px-2 py-1 dark:border-slate-800 dark:bg-slate-900/60">
               <span className="block text-[9px] font-bold uppercase text-slate-400">
-                Proc. Pagto 2026
+                Proc. pagto 2026
               </span>
               <span className="block truncate font-mono font-bold text-emerald-700 dark:text-emerald-400">
                 {c.processoPagamento || '—'}
@@ -637,7 +630,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           </div>
         </div>
 
-        {/* Rodapé do Card: Etapa E-Docs + Botão Abrir Processo */}
+        {/* Rodapé do card: Etapa E-Docs + botão abrir processo */}
         <div className="mt-3 space-y-2 border-t border-slate-100 pt-2.5 dark:border-slate-800/80">
           <div className="flex items-center justify-between text-[11px]">
             <span className="inline-flex items-center gap-1 truncate font-medium text-slate-600 dark:text-slate-400">
@@ -655,7 +648,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             )}
           </div>
 
-          {proc && podeEditar && (
+          {proc && (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-slate-400">
                 Etapa:
@@ -682,10 +675,10 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Cabeçalho Híbrido M3 com Seletor de Modo + Filtros Rápidos */}
+      {/* Cabeçalho híbrido M3 com seletor de modo + filtros rápidos */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-          {/* Seletor das 3 Visões Híbridas */}
+          {/* Seletor das 3 visões híbridas */}
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-100 p-1.5 dark:bg-slate-950">
             <button
               type="button"
@@ -697,7 +690,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               }`}
             >
               <Layers className="h-4 w-4" />
-              1. Quadro de Ações da SLC (Gatilhos)
+              1. Quadro de ações da SLC
             </button>
 
             <button
@@ -710,7 +703,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               }`}
             >
               <Table2 className="h-4 w-4" />
-              2. Mapa de Execução Mensal (Jan–Dez)
+              2. Mapa de execução mensal
             </button>
 
             <button
@@ -723,11 +716,11 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               }`}
             >
               <Columns3 className="h-4 w-4" />
-              3. Etapas E-Docs (Drag &amp; Drop)
+              3. Etapas E-Docs
             </button>
           </div>
 
-          {/* Busca + Filtro por Setor Demandante */}
+          {/* Busca + filtro por setor demandante */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[280px] flex-1 sm:w-80 sm:flex-initial">
               <Search className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
@@ -746,7 +739,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               className="rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
             >
               <option value="TODOS">
-                Todos os Setores ({setoresUnicos.length})
+                Todos os setores ({setoresUnicos.length})
               </option>
               {setoresUnicos.map((setor) => (
                 <option key={setor} value={setor}>
@@ -763,7 +756,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
          ========================================================================== */}
       {modoM3 === 'ACOES_SLC' && (
         <div className="space-y-4">
-          {/* Resumo Rápido das 5 Frentes */}
+          {/* Resumo rápido das 5 frentes */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-3.5 dark:border-rose-500/30 dark:bg-rose-950/20">
               <div className="flex items-center justify-between">
@@ -776,7 +769,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 {frentesAcaoSLC.criticosRenovacao.length}
               </div>
               <p className="text-[11px] text-rose-600/90 dark:text-rose-300/80">
-                Instruir Aditivo [P] ou Licitação [NP]
+                Instruir aditivo [P] ou licitação [NP]
               </p>
             </div>
 
@@ -813,7 +806,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-3.5 dark:border-purple-500/30 dark:bg-purple-950/20">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold uppercase text-purple-800 dark:text-purple-300">
-                  4. Reforço de Empenho
+                  4. Reforço de empenho
                 </span>
                 <Wallet className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               </div>
@@ -828,7 +821,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-500/30 dark:bg-emerald-950/20">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold uppercase text-emerald-800 dark:text-emerald-300">
-                  5. Execução Regular
+                  5. Execução regular
                 </span>
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </div>
@@ -836,12 +829,12 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 {frentesAcaoSLC.execucaoRegular.length}
               </div>
               <p className="text-[11px] text-emerald-700/90 dark:text-emerald-300/80">
-                Vigência &gt; 180d, CNDs e Saldo OK
+                Vigência &gt; 180d, CNDs e saldo OK
               </p>
             </div>
           </div>
 
-          {/* As 5 Colunas Operacionais em Grade Fluida de Largura Total */}
+          {/* As 5 colunas operacionais em grade fluida de largura total */}
           <div className="grid grid-cols-1 items-start gap-4 pb-4 md:grid-cols-2 xl:grid-cols-5">
             {/* Coluna 1: Crítico <= 90 dias */}
             <div className="flex min-w-0 w-full flex-col overflow-hidden rounded-2xl border border-rose-200/90 bg-slate-100/80 dark:border-rose-500/30 dark:bg-slate-900/60">
@@ -849,10 +842,10 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/90">
                 <div>
                   <span className="text-xs font-extrabold uppercase tracking-wider text-rose-700 dark:text-rose-300">
-                    🔥 Renovação Crítica (&lt;= 90d)
+                    🔥 Renovação crítica (&lt;= 90d)
                   </span>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Aditivos [P] ou Nova Licitação [NP]
+                    Aditivos [P] ou nova licitação [NP]
                   </p>
                 </div>
                 <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-extrabold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
@@ -872,7 +865,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               </div>
             </div>
 
-            {/* Coluna 2: Janela de Planejamento (91 a 180 dias) */}
+            {/* Coluna 2: Janela de planejamento (91 a 180 dias) */}
             <div className="flex min-w-0 w-full flex-col overflow-hidden rounded-2xl border border-amber-200/90 bg-slate-100/80 dark:border-amber-500/30 dark:bg-slate-900/60">
               <div className="h-1.5 w-full bg-amber-500" />
               <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/90">
@@ -881,7 +874,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     ⏳ Planejamento (91 a 180d)
                   </span>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Oficiar setor gestor no Proc. Mãe
+                    Oficiar setor gestor no proc. mãe
                   </p>
                 </div>
                 <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-extrabold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
@@ -901,7 +894,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               </div>
             </div>
 
-            {/* Coluna 3: Bloqueio Documental (CNDs Vencidas) */}
+            {/* Coluna 3: Bloqueio documental (CNDs vencidas) */}
             <div className="flex min-w-0 w-full flex-col overflow-hidden rounded-2xl border border-orange-200/90 bg-slate-100/80 dark:border-orange-500/30 dark:bg-slate-900/60">
               <div className="h-1.5 w-full bg-orange-500" />
               <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/90">
@@ -910,7 +903,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     🚨 Pendência CND / Fiscal
                   </span>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Certidões vencidas no Proc. Pagto
+                    Certidões vencidas no proc. pagto
                   </p>
                 </div>
                 <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-extrabold text-orange-800 dark:bg-orange-500/20 dark:text-orange-300">
@@ -930,13 +923,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               </div>
             </div>
 
-            {/* Coluna 4: Alerta de Empenho (Reforço de Empenho > 0) */}
+            {/* Coluna 4: Alerta de empenho (reforço de empenho > 0) */}
             <div className="flex min-w-0 w-full flex-col overflow-hidden rounded-2xl border border-purple-200/90 bg-slate-100/80 dark:border-purple-500/30 dark:bg-slate-900/60">
               <div className="h-1.5 w-full bg-purple-500" />
               <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/90">
                 <div>
                   <span className="text-xs font-extrabold uppercase tracking-wider text-purple-800 dark:text-purple-300">
-                    💰 Reforço de Empenho
+                    💰 Reforço de empenho
                   </span>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
                     Saldo NE menor que projeção anual
@@ -959,16 +952,16 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               </div>
             </div>
 
-            {/* Coluna 5: Execução Regular (Compactada por padrão para não gerar rolagem infinita) */}
+            {/* Coluna 5: Execução regular (compactada por padrão para não gerar rolagem infinita) */}
             <div className="flex min-w-0 w-full flex-col overflow-hidden rounded-2xl border border-emerald-200/90 bg-slate-100/80 dark:border-emerald-500/30 dark:bg-slate-900/60">
               <div className="h-1.5 w-full bg-emerald-500" />
               <div className="flex items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/90">
                 <div>
                   <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-                    ✅ Execução Regular (&gt;180d)
+                    ✅ Execução regular (&gt;180d)
                   </span>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Vigência, CNDs e Saldo em dia
+                    Vigência, CNDs e saldo em dia
                   </p>
                 </div>
                 <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
@@ -1019,7 +1012,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase text-slate-400">
-                  Mês em Conferência
+                  Mês em conferência
                 </span>
                 <select
                   value={mesReferencia}
@@ -1065,14 +1058,14 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 {formatarMoedaBRL(resumoExecucaoMensal.totalEmpenhado)}
               </div>
               <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                Soma das Notas de Empenho ativas
+                Soma das notas de empenho ativas
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase text-slate-400">
-                  Executado Acumulado (Jan–Dez)
+                  Executado acumulado (Jan–Dez)
                 </span>
                 <FileCheck2 className="h-4 w-4 text-emerald-500" />
               </div>
@@ -1087,7 +1080,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase text-slate-400">
-                  Saldo de Empenho Disponível
+                  Saldo de empenho disponível
                 </span>
                 <Wallet className="h-4 w-4 text-purple-500" />
               </div>
@@ -1101,7 +1094,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             </div>
           </div>
 
-          {/* Filtros Rápidos do Mapa Mensal */}
+          {/* Filtros rápidos do mapa mensal */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -1124,7 +1117,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300'
                 }`}
               >
-                Com Pagamento em {mesReferencia} (
+                Com pagamento em {mesReferencia} (
                 {resumoExecucaoMensal.qtdPagosNoMes})
               </button>
               <button
@@ -1136,7 +1129,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     : 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300'
                 }`}
               >
-                Sem Lançamento em {mesReferencia} (
+                Sem lançamento em {mesReferencia} (
                 {resumoExecucaoMensal.qtdPendentesNoMes})
               </button>
               <button
@@ -1148,7 +1141,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     : 'bg-rose-50 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300'
                 }`}
               >
-                Com CND Vencida
+                Com CND vencida
               </button>
               <button
                 type="button"
@@ -1159,17 +1152,17 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     : 'bg-purple-50 text-purple-800 hover:bg-purple-100 dark:bg-purple-950/50 dark:text-purple-300'
                 }`}
               >
-                Pede Reforço de Empenho ({resumoExecucaoMensal.qtdComReforco})
+                Pede reforço de empenho ({resumoExecucaoMensal.qtdComReforco})
               </button>
             </div>
 
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              Clique em qualquer linha para ver as Notas Fiscais (NFs), CNDs e
+              Clique em qualquer linha para ver as notas fiscais (NFs), CNDs e
               abrir o processo E-Docs
             </span>
           </div>
 
-          {/* Grade Matriz Jan a Dez */}
+          {/* Grade matriz jan a Dez */}
           <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left text-xs">
@@ -1177,7 +1170,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                   <tr className="border-b border-slate-200 bg-slate-100/90 text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
                     <th className="py-3 pl-3 pr-2">Aba</th>
                     <th className="min-w-[210px] px-2 py-3">
-                      Contrato &amp; Credor
+                      Contrato &amp; credor
                     </th>
                     <th className="px-2 py-3">Setor</th>
                     {MESES_EXECUCAO.map((m) => (
@@ -1193,7 +1186,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                         {m}
                       </th>
                     ))}
-                    <th className="px-2.5 py-3 text-right">Total Pago</th>
+                    <th className="px-2.5 py-3 text-right">Total pago</th>
                     <th className="px-2.5 py-3 text-right">Saldo NE</th>
                     <th className="py-3 pl-2 pr-3 text-center">CNDs</th>
                   </tr>
@@ -1248,7 +1241,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                             </span>
                           </td>
 
-                          {/* 12 Colunas Mensais Jan..Dez */}
+                          {/* 12 colunas mensais jan-dez */}
                           {MESES_EXECUCAO.map((m) => {
                             const reg = execMensal.find(
                               (x) => x.mes.toLowerCase() === m.toLowerCase()
@@ -1324,7 +1317,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           </td>
                         </tr>
 
-                        {/* Faixa Expansível com NFs, Rateio RPPS/FPS, CNDs e Ação Rápida E-Docs */}
+                        {/* Faixa expansível com NFs, rateio RPPS/FPS, CNDs e ação rápida E-Docs */}
                         {isExpandido && (
                           <tr className="bg-slate-50/95 dark:bg-slate-950/90">
                             <td colSpan={18} className="p-4">
@@ -1348,13 +1341,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                                   </p>
                                   <div className="flex flex-wrap gap-4 pt-1 text-[11px] text-slate-600 dark:text-slate-400">
                                     <span>
-                                      <strong>Proc. Mãe:</strong>{' '}
+                                      <strong>Proc. mãe:</strong>{' '}
                                       <code className="font-bold text-blue-600 dark:text-blue-400">
                                         {c.numeroEdocs}
                                       </code>
                                     </span>
                                     <span>
-                                      <strong>Proc. Pagamento:</strong>{' '}
+                                      <strong>Proc. pagamento:</strong>{' '}
                                       <code className="font-bold text-emerald-600 dark:text-emerald-400">
                                         {c.processoPagamento || '—'}
                                       </code>
@@ -1384,7 +1377,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                                       }
                                       className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-sm hover:bg-blue-500"
                                     >
-                                      Abrir Processo E-Docs ({proc.situacao})
+                                      Abrir processo E-Docs ({proc.situacao})
                                       <ExternalLink className="h-3.5 w-3.5" />
                                     </button>
                                   </div>
@@ -1480,12 +1473,12 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             >
               {ocultarConcluidosKanban ? (
                 <>
-                  <Eye className="h-3.5 w-3.5" /> Mostrar Coluna
+                  <Eye className="h-3.5 w-3.5" /> Mostrar coluna
                   &ldquo;Concluído&rdquo;
                 </>
               ) : (
                 <>
-                  <EyeOff className="h-3.5 w-3.5" /> Ocultar Coluna
+                  <EyeOff className="h-3.5 w-3.5" /> Ocultar coluna
                   &ldquo;Concluído&rdquo;
                 </>
               )}
@@ -1540,17 +1533,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                         return (
                           <div
                             key={proc.id}
-                            draggable={podeEditar}
+                            draggable
                             onDragStart={(e) => handleDragStart(e, proc)}
                             onDragEnd={() => {
                               setProcessoArrastandoId(null);
                               setColunaAlvo(null);
                             }}
-                            className={`group flex flex-col justify-between rounded-xl border bg-white p-3.5 shadow-sm transition-all dark:bg-slate-950/90 ${
-                              podeEditar
-                                ? 'cursor-grab active:cursor-grabbing'
-                                : ''
-                            } ${
+                            className={`group flex cursor-grab flex-col justify-between rounded-xl border bg-white p-3.5 shadow-sm transition-all active:cursor-grabbing dark:bg-slate-950/90 ${
                               isArrastando
                                 ? 'scale-95 border-blue-500 opacity-50'
                                 : 'border-slate-200/90 hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md dark:border-slate-800 dark:hover:border-slate-700'
@@ -1559,9 +1548,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                             <div>
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5">
-                                  {podeEditar && (
-                                    <GripVertical className="h-3.5 w-3.5 text-slate-400 opacity-60 group-hover:opacity-100" />
-                                  )}
+                                  <GripVertical className="h-3.5 w-3.5 text-slate-400 opacity-60 group-hover:opacity-100" />
                                   <span
                                     onClick={() =>
                                       onSelecionarProcesso(proc, 'detalhes')
@@ -1621,28 +1608,26 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                                 />
                               </div>
 
-                              {podeEditar && (
-                                <div className="flex items-center justify-between gap-2 pt-1">
-                                  <button
-                                    type="button"
-                                    disabled={idxEtapa === 0}
-                                    onClick={() => moverParaIndice(proc, -1)}
-                                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                                  >
-                                    <ChevronLeft className="h-3 w-3" /> Ant.
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      idxEtapa === ETAPAS_KANBAN.length - 1
-                                    }
-                                    onClick={() => moverParaIndice(proc, 1)}
-                                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-30 dark:border-blue-500/30 dark:bg-blue-600/20 dark:text-blue-300 dark:hover:bg-blue-600/30"
-                                  >
-                                    Avançar <ChevronRight className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex items-center justify-between gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  disabled={idxEtapa === 0}
+                                  onClick={() => moverParaIndice(proc, -1)}
+                                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-slate-50 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                                >
+                                  <ChevronLeft className="h-3 w-3" /> Ant.
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    idxEtapa === ETAPAS_KANBAN.length - 1
+                                  }
+                                  onClick={() => moverParaIndice(proc, 1)}
+                                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-30 dark:border-blue-500/30 dark:bg-blue-600/20 dark:text-blue-300 dark:hover:bg-blue-600/30"
+                                >
+                                  Avançar <ChevronRight className="h-3 w-3" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );

@@ -41,17 +41,17 @@ interface ModoTvViewProps {
 const TELAS_TV = [
   {
     indice: 0,
-    titulo: '1/3 · Visão Geral dos Contratos Vigentes',
+    titulo: '1/3 · Visão geral dos contratos vigentes',
     subtitulo: 'Indicadores consolidados de vigência, empenho, execução e setores da SLC',
   },
   {
     indice: 1,
-    titulo: '2/3 · Painel Geral de Contratos Vigentes (Aba "vigentes")',
+    titulo: '2/3 · Painel geral de contratos vigentes',
     subtitulo: 'Todos os contratos vigentes ordenados por data de término e paginados automaticamente',
   },
   {
     indice: 2,
-    titulo: '3/3 · Alertas de Vencimento, Prorrogações e Novas Contratações',
+    titulo: '3/3 · Alertas de vencimento, prorrogações e novas contratações',
     subtitulo: 'Monitoramento dos contratos em janela crítica (≤90d e ≤180d) e necessidade de licitação',
   },
 ];
@@ -162,7 +162,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
       .slice(0, 8);
   }, [contratos]);
 
-  // Função para avançar o ciclo (se estiver na Tela 2, percorre todas as páginas de contratos antes de ir para a Tela 3)
+  // Função para avançar o ciclo (se estiver na tela 2, percorre todas as páginas de contratos antes de ir para a tela 3)
   const avancarCicloTv = () => {
     setTelaAtual((tAtual) => {
       if (tAtual === 1 && paginaContratos + 1 < totalPaginasContratos) {
@@ -216,7 +216,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-950 text-slate-100">
-      {/* Barra de Progresso da Rotação da TV */}
+      {/* Barra de progresso da rotação da TV */}
       <div className="h-1.5 w-full bg-slate-900">
         <div
           className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
@@ -224,7 +224,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
         />
       </div>
 
-      {/* Alerta de Perda de Conexão (RNF-07) */}
+      {/* Alerta de perda de conexão (RNF-07) */}
       {simulandoFalhaRede && (
         <div className="flex items-center justify-between border-b border-amber-500/50 bg-amber-500/20 px-8 py-2.5 text-amber-200">
           <div className="flex items-center gap-3 text-sm font-semibold">
@@ -242,7 +242,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
             }}
             className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-bold text-slate-950 hover:bg-amber-400"
           >
-            Restabelecer Conexão
+            Restabelecer conexão
           </button>
         </div>
       )}
@@ -256,7 +256,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
           <div>
             <div className="flex items-center gap-2.5">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
-                IPAJM · SLC DIGITAL · PAINEL DE MONITORAMENTO DE CONTRATOS (1 TV)
+                PAINEL DE MONITORAMENTO DE CONTRATOS
               </span>
             </div>
             <h1 className="mt-0.5 text-xl font-extrabold tracking-tight text-white sm:text-2xl">
@@ -270,7 +270,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
           </div>
         </div>
 
-        {/* Seletor das 3 Telas + Controles para Apresentação */}
+        {/* Seletor das 3 telas + controles para apresentação */}
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex rounded-xl border border-slate-800 bg-slate-950 p-1">
             {TELAS_TV.map((t) => (
@@ -322,7 +322,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
 
           <button
             onClick={() => setPausado((p) => !p)}
-            title="Pausar/Retomar rotação (Espaço)"
+            title="Pausar ou retomar (Espaço)"
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
           >
             {pausado ? (
@@ -341,7 +341,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               avancarCicloTv();
               setSegundosDecorridos(0);
             }}
-            title="Avançar (Seta direita)"
+            title="Avançar (seta direita)"
             className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-200 hover:bg-slate-700"
           >
             <SkipForward className="h-4 w-4" />
@@ -363,28 +363,6 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
             <option value={20}>Ciclo: 20s</option>
             <option value={30}>Ciclo: 30s</option>
           </select>
-
-          <button
-            onClick={() =>
-              onAtualizarConfigTv({
-                ...configTv,
-                exibirResponsavelTv: !configTv.exibirResponsavelTv,
-              })
-            }
-            title="Alternar visibilidade do Gestor/Fiscal na TV"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700"
-          >
-            {configTv.exibirResponsavelTv ? (
-              <>
-                <Eye className="h-3.5 w-3.5 text-blue-400" /> Fiscal/Gestor: Visível
-              </>
-            ) : (
-              <>
-                <EyeOff className="h-3.5 w-3.5 text-slate-400" /> Fiscal/Gestor: Oculto
-              </>
-            )}
-          </button>
-
           <button
             onClick={onSairModoTv}
             className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/25"
@@ -394,7 +372,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
         </div>
       </header>
 
-      {/* Conteúdo Principal em Tela Cheia 16:9 */}
+      {/* Conteúdo principal em tela cheia 16:9 */}
       <main className="flex-1 overflow-y-auto px-8 py-5">
         {telaAtual === 0 && (
           /* ================= TELA 1: VISÃO GERAL DOS CONTRATOS ================= */
@@ -403,7 +381,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-7">
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-sm font-bold uppercase tracking-wider">
-                    Contratos Vigentes
+                    Contratos vigentes
                   </span>
                   <FileSignature className="h-7 w-7 text-blue-400" />
                 </div>
@@ -412,14 +390,14 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 </div>
                 <p className="mt-2 text-sm text-slate-400">
                   {contratos.filter((c) => c.prorrogavel).length} Prorrogáveis (P) ·{' '}
-                  {contratos.filter((c) => !c.prorrogavel).length} Nova Contratação (NP)
+                  {contratos.filter((c) => !c.prorrogavel).length} Nova contratação (NP)
                 </p>
               </div>
 
               <div className="rounded-3xl border border-indigo-500/30 bg-slate-900/90 p-7">
                 <div className="flex items-center justify-between text-indigo-300">
                   <span className="text-sm font-bold uppercase tracking-wider">
-                    Total Empenhado (2026)
+                    Total empenhado (2026)
                   </span>
                   <Landmark className="h-7 w-7 text-indigo-400" />
                 </div>
@@ -434,7 +412,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               <div className="rounded-3xl border border-emerald-500/30 bg-slate-900/90 p-7">
                 <div className="flex items-center justify-between text-emerald-300">
                   <span className="text-sm font-bold uppercase tracking-wider">
-                    Saldo de Empenho
+                    Saldo de empenho
                   </span>
                   <Wallet className="h-7 w-7 text-emerald-400" />
                 </div>
@@ -449,7 +427,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               <div className="rounded-3xl border border-rose-500/40 bg-rose-950/20 p-7">
                 <div className="flex items-center justify-between text-rose-300">
                   <span className="text-sm font-bold uppercase tracking-wider">
-                    Vencendo em ≤ 90 Dias
+                    Vencendo em ≤ 90 dias
                   </span>
                   <CalendarClock className="h-7 w-7 text-rose-400" />
                 </div>
@@ -462,7 +440,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-rose-200/80">
-                  Prioridade de instrução de Aditivo ou Nova Licitação
+                  Prioridade de instrução de aditivo ou nova licitação
                 </p>
               </div>
             </div>
@@ -470,7 +448,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
             {/* Distribuição de Contratos por Setor Solicitante do IPAJM */}
             <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-7">
               <h2 className="text-xl font-bold text-white">
-                Distribuição dos Contratos Vigentes por Setor Solicitante (IPAJM)
+                Distribuição dos contratos vigentes por setor solicitante (IPAJM)
               </h2>
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {distribuicaoSetores.map((item) => {
@@ -516,13 +494,13 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                   <th className="pb-3 pr-3">#</th>
                   <th className="pb-3 pr-3">Término / Prazo</th>
                   <th className="pb-3 pr-3">Empresa / Objeto</th>
-                  <th className="pb-3 pr-3">Nº Contrato</th>
-                  <th className="pb-3 pr-3">Proc. Mãe / Pagto</th>
+                  <th className="pb-3 pr-3">Nº contrato</th>
+                  <th className="pb-3 pr-3">Proc. mãe / Pagto</th>
                   <th className="pb-3 pr-3">Setor</th>
                   <th className="pb-3 pr-3">P / NP</th>
-                  <th className="pb-3 pr-3 text-right">Saldo Empenho</th>
+                  <th className="pb-3 pr-3 text-right">Saldo empenho</th>
                   {configTv.exibirResponsavelTv && (
-                    <th className="pb-3">Gestor / Fiscal Titular</th>
+                    <th className="pb-3">Gestor / Fiscal titular</th>
                   )}
                 </tr>
               </thead>
@@ -616,13 +594,13 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
           /* ================= TELA 3: JANELAS DE VENCIMENTO (≤45d, 46–90d, 91–180d) ================= */
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Coluna Críticos <= 45 dias */}
+              {/* Coluna críticos <= 45 dias */}
               <div className="rounded-3xl border border-rose-500/40 bg-rose-950/20 p-6">
                 <div className="flex items-center justify-between border-b border-rose-500/30 pb-4">
                   <div className="flex items-center gap-3">
                     <AlertOctagon className="h-7 w-7 text-rose-400" />
                     <h2 className="text-xl font-bold text-rose-200">
-                      Crítico: Vence em ≤ 45 dias
+                      Crítico: vence em ≤ 45 dias
                     </h2>
                   </div>
                   <span className="rounded-2xl bg-rose-500/30 px-4 py-1 text-2xl font-black text-rose-200">
@@ -650,11 +628,11 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                           {c.objeto}
                         </p>
                         <p className="mt-2 text-xs text-rose-200/90">
-                          Proc. Mãe: {c.numeroEdocs} ·{' '}
+                          Proc. mãe: {c.numeroEdocs} ·{' '}
                           <strong>
                             {c.prorrogavel
-                              ? 'Prorrogável (Instruir Aditivo)'
-                              : 'Não Prorrogável (Nova Contratação)'}
+                              ? 'Prorrogável (instruir aditivo)'
+                              : 'Não prorrogável (nova contratação)'}
                           </strong>
                         </p>
                       </div>
@@ -663,7 +641,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 </div>
               </div>
 
-              {/* Coluna Alerta 46 a 90 dias */}
+              {/* Coluna alerta 46 a 90 dias */}
               <div className="rounded-3xl border border-amber-500/40 bg-amber-950/15 p-6">
                 <div className="flex items-center justify-between border-b border-amber-500/30 pb-4">
                   <div className="flex items-center gap-3">
@@ -697,11 +675,11 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                           {c.objeto}
                         </p>
                         <p className="mt-2 text-xs text-amber-200/90">
-                          Proc. Mãe: {c.numeroEdocs} ·{' '}
+                          Proc. mãe: {c.numeroEdocs} ·{' '}
                           <strong>
                             {c.prorrogavel
                               ? 'Prorrogável (P)'
-                              : 'Não Prorrogável (NP - Nova Contratação)'}
+                              : 'Não prorrogável (NP - nova contratação)'}
                           </strong>
                         </p>
                       </div>
@@ -710,7 +688,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 </div>
               </div>
 
-              {/* Coluna Planejamento 91 a 180 dias */}
+              {/* Coluna planejamento 91 a 180 dias */}
               <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                   <div className="flex items-center gap-3">
@@ -745,7 +723,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                         </p>
                         <p className="mt-2 text-xs text-slate-400">
                           Setor: {(c.setorDemandante || 'SLC').split(' — ')[0]} ·{' '}
-                          {c.prorrogavel ? 'Prorrogável (P)' : 'Nova Contratação (NP)'}
+                          {c.prorrogavel ? 'Prorrogável (P)' : 'Nova contratação (NP)'}
                         </p>
                       </div>
                     );
@@ -757,12 +735,12 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
         )}
       </main>
 
-      {/* Rodapé de Segurança e Status de Sincronização (RNF-07 / RF-13) */}
+      {/* Rodapé de segurança e status de sincronização (RNF-07 / RF-13) */}
       <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 bg-slate-900/95 px-8 py-3 text-xs text-slate-400">
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-1.5 font-medium text-emerald-400">
             <ShieldCheck className="h-4 w-4" />
-            Painel Sincronizado com a Aba &ldquo;vigentes&rdquo; ({contratos.length} contratos ativos ·{' '}
+            Painel sincronizado com a aba &ldquo;vigentes&rdquo; ({contratos.length} contratos ativos ·{' '}
             {qtdRestritosOcultos} restritos ocultados)
           </span>
         </div>

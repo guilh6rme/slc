@@ -41,7 +41,7 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Regra de Alerta Configurável (M4) */}
+      {/* Regras de alerta configuráveis (M4) */}
       <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 lg:flex-row lg:items-center">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
@@ -49,11 +49,11 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Regras de Alerta de Prazos e Inatividade Interna (M4)
+              Regras de alerta de prazos e inatividade interna (M4)
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Diferencia ausência de atualização interna no SLC Digital de movimentação
-              oficial no E-Docs. Parâmetros refletem imediatamente no Dashboard e na TV.
+              Diferencia ausência de atualização interna no SLC digital de movimentação
+              oficial no E-Docs. Parâmetros refletem imediatamente no dashboard e na TV.
             </p>
           </div>
         </div>
@@ -103,7 +103,7 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
         </div>
       </div>
 
-      {/* Três blocos operacionais: Vencidos, Próximos e Sem Atualização */}
+      {/* Três blocos operacionais: vencidos, próximos e sem atualização */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* 1. Vencidos */}
         <div className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm dark:border-rose-500/30 dark:bg-slate-900/90">
@@ -111,11 +111,11 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
             <div className="flex items-center gap-2.5">
               <AlertOctagon className="h-5 w-5 text-rose-500 dark:text-rose-400" />
               <h4 className="text-sm font-bold text-rose-700 dark:text-rose-200">
-                Prazos Vencidos ({vencidos.length})
+                Prazos vencidos ({vencidos.length})
               </h4>
             </div>
             <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-              Ação Imediata
+              Ação imediata
             </span>
           </div>
 
@@ -218,12 +218,12 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
             <div className="flex items-center gap-2.5">
               <AlertTriangle className="h-5 w-5 text-sky-500 dark:text-sky-400" />
               <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Sem Atualização &gt; {configTv.diasAlertaInatividade}d (
+                Sem atualização &gt; {configTv.diasAlertaInatividade}d (
                 {semAtualizacao.length})
               </h4>
             </div>
             <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-800 dark:bg-sky-500/20 dark:text-sky-300">
-              Revisar Status
+              Revisar status
             </span>
           </div>
 
@@ -267,7 +267,7 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
       <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
         <Info className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
         <span>
-          <strong>Nota de Governança:</strong> A ausência de atualização interna no SLC
+          <strong>Nota de governança:</strong> A ausência de atualização interna no SLC
           Digital indica apenas que o registro de acompanhamento interno não foi editado
           há mais de {configTv.diasAlertaInatividade} dias, não significando
           necessariamente paralisação no sistema oficial E-Docs.

@@ -545,3 +545,4 @@ def atualizar_config_tv(
     db.commit()
     db.refresh(cfg)
     return ConfiguracaoTVSchema(**model_to_config_dict(cfg))
+

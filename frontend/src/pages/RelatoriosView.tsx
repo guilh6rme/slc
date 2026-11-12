@@ -46,17 +46,17 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
     exportarDadosParaCsv(
       `relatorio_processos_slc_${new Date().toISOString().split('T')[0]}.csv`,
       [
-        'Codigo Interno',
+        'Codigo interno',
         'Numero E-Docs',
         'Assunto',
         'Categoria',
-        'Setor Demandante',
-        'Situacao / Etapa',
+        'Setor demandante',
+        'Situacao / etapa',
         'Prioridade',
         'Responsavel',
-        'Data Entrada',
+        'Data entrada',
         'Prazo',
-        'Ultima Atualizacao',
+        'Ultima atualizacao',
         'Restrito TV',
       ],
       processosFiltrados.map((p) => [
@@ -83,21 +83,21 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
     exportarDadosParaCsv(
       `relatorio_contratos_vigentes_slc_${new Date().toISOString().split('T')[0]}.csv`,
       [
-        'Numero Contrato',
+        'Numero contrato',
         'Processo E-Docs',
-        'Empresa Contratada',
+        'Empresa contratada',
         'CNPJ',
         'Objeto',
-        'Setor Demandante',
-        'Valor Global (R$)',
-        'Saldo Disponivel (R$)',
-        'Inicio Vigencia',
-        'Fim Vigencia',
-        'Status Garantia',
+        'Setor demandante',
+        'Valor global (R$)',
+        'Saldo disponivel (R$)',
+        'Inicio vigencia',
+        'Fim vigencia',
+        'Status garantia',
         'Gestor',
-        'Fiscal Titular',
-        'Fiscal Suplente',
-        'Ultimo Termo',
+        'Fiscal titular',
+        'Fiscal suplente',
+        'Ultimo termo',
       ],
       contratos.map((c) => [
         c.numeroContrato,
@@ -125,7 +125,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
   const handleExportarAuditoriaCsv = () => {
     exportarDadosParaCsv(
       `trilha_auditoria_slc_${new Date().toISOString().split('T')[0]}.csv`,
-      ['ID', 'Processo ID', 'Usuario Autor', 'Data/Hora', 'Campo', 'De', 'Para'],
+      ['ID', 'Processo ID', 'Usuario autor', 'Data/Hora', 'Campo', 'De', 'Para'],
       historico.map((h) => [
         h.id,
         h.processoId,
@@ -166,7 +166,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho de Exportação e Filtros */}
+      {/* Cabeçalho de exportação e filtros */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div className="flex items-start gap-3">
@@ -175,10 +175,10 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Central de Relatórios Gerenciais e Exportação de Dados (M6)
+                Central de relatórios gerenciais e exportação de dados
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Geração de planilhas compatíveis com Excel (UTF-8) e consolidação por
+                Geração de planilhas compatíveis com Excel e consolidação por
                 setor demandante, categoria e etapas
               </p>
             </div>
@@ -190,7 +190,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-500"
             >
               <Download className="h-4 w-4" />
-              Exportar Processos (.CSV)
+              Exportar processos (.CSV)
             </button>
 
             <button
@@ -198,7 +198,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500"
             >
               <FileCheck className="h-4 w-4" />
-              Exportar Contratos (.CSV)
+              Exportar contratos (.CSV)
             </button>
 
             <button
@@ -223,7 +223,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
         <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 dark:border-slate-800 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Filtrar Relatório por Setor Demandante
+              Filtrar relatório por setor demandante
             </label>
             <select
               value={setorFiltro}
@@ -241,7 +241,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
 
           <div>
             <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Filtrar Relatório por Categoria
+              Filtrar relatório por categoria
             </label>
             <select
               value={categoriaFiltro}
@@ -266,7 +266,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              Demandas por Unidade / Gerência Solicitante
+              Demandas por unidade
             </h4>
           </div>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -277,7 +277,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-200 uppercase text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                  <th className="pb-2.5">Unidade Demandante</th>
+                  <th className="pb-2.5">Unidade demandante</th>
                   <th className="pb-2.5 text-center">Ativos</th>
                   <th className="pb-2.5 text-center">Concluídos</th>
                   <th className="pb-2.5 text-right">Total</th>
@@ -317,12 +317,12 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
           </div>
         </div>
 
-        {/* 2. Tempo Médio Acumulado por Etapa */}
+        {/* 2. Tempo médio acumulado por etapa */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-              Volume e Tempo Médio desde a Entrada por Etapa
+              Volume e tempo médio desde a entrada por etapa
             </h4>
           </div>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -333,9 +333,9 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-200 uppercase text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                  <th className="pb-2.5">Etapa Interna da SLC</th>
-                  <th className="pb-2.5 text-center">Qtd. Processos</th>
-                  <th className="pb-2.5 text-right">Tempo Médio Acumulado</th>
+                  <th className="pb-2.5">Etapa interna</th>
+                  <th className="pb-2.5 text-center">Qtd. processos</th>
+                  <th className="pb-2.5 text-right">Tempo médio acumulado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
@@ -358,11 +358,11 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
         </div>
       </div>
 
-      {/* Nota Institucional de Governança de Indicadores (Seção 6 - M6) */}
+      {/* Nota institucional de governança de indicadores (Seção 6 - M6) */}
       <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-900 dark:border-blue-500/30 dark:bg-blue-950/20 dark:text-blue-200">
         <ShieldCheck className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
         <div>
-          <strong>Diretriz Institucional de Uso de Indicadores (M6):</strong> Conforme
+          <strong>Diretriz institucional de uso de indicadores:</strong> Conforme
           especificado no plano do SLC Digital, os relatórios e métricas de tempo de
           tramitação têm finalidade estritamente gerencial para identificar gargalos de
           fluxo, dependências externas e necessidades de apoio operacional, não devendo
@@ -373,4 +373,3 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
     </div>
   );
 };
-

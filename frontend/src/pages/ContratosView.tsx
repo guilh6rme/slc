@@ -23,7 +23,6 @@ import {
   ContratoSLC,
   CndsContrato,
   ExecucaoMensalItem,
-  PerfilUsuario,
   SETORES_DEMANDANTES,
   StatusGarantia,
 } from '../types/slc';
@@ -31,7 +30,6 @@ import { calcularDiasAtePrazo } from '../services/slcService';
 
 interface ContratosViewProps {
   contratos: ContratoSLC[];
-  perfilAtual: PerfilUsuario;
   onSalvarContrato: (contrato: ContratoSLC, isNovo: boolean) => void;
 }
 
@@ -51,9 +49,101 @@ function formatarDataBr(iso?: string): string {
   }
 }
 
+const MESES_PADRAO = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+];
+
+function normalizarExecucaoMensal(jsonStr?: string): ExecucaoMensalItem[] {
+  let parsed: ExecucaoMensalItem[] = [];
+  try {
+    if (jsonStr) parsed = JSON.parse(jsonStr);
+  } catch {
+    parsed = [];
+  }
+  const mapPorMes = new Map<string, ExecucaoMensalItem>();
+  parsed.forEach((item) => {
+    if (item && item.mes) mapPorMes.set(item.mes, item);
+  });
+  return MESES_PADRAO.map((mes) => {
+    const existente = mapPorMes.get(mes);
+    return {
+      mes,
+      valor: Number(existente?.valor) || 0,
+      nf: existente?.nf || '',
+      medicao: existente?.medicao || '',
+    };
+  });
+}
+
+function recalcularTotaisContrato(
+  base: ContratoSLC,
+  meses: ExecucaoMensalItem[],
+  overrideValorGlobal?: number
+): ContratoSLC {
+  const valorGlobal =
+    overrideValorGlobal !== undefined
+      ? overrideValorGlobal
+      : Number(base.valorGlobal) || 0;
+
+  const totalGasto =
+    Math.round(
+      meses.reduce((acc, item) => acc + (Number(item.valor) || 0), 0) * 100
+    ) / 100;
+
+  const saldoDisponivel = Math.round((valorGlobal - totalGasto) * 100) / 100;
+
+  // Descobre até qual mês já houve movimentação (valor > 0 ou NF preenchida)
+  let ultimoIndiceMovimentado = -1;
+  meses.forEach((m, idx) => {
+    if ((Number(m.valor) || 0) > 0 || (m.nf && m.nf.trim() !== '')) {
+      ultimoIndiceMovimentado = idx;
+    }
+  });
+
+  const qtdMesesDecorridos =
+    ultimoIndiceMovimentado >= 0 ? ultimoIndiceMovimentado + 1 : 0;
+  const mediaMensal =
+    qtdMesesDecorridos > 0
+      ? Math.round((totalGasto / qtdMesesDecorridos) * 100) / 100
+      : 0;
+
+  let reforcoEmpenho = base.reforcoEmpenho || 'R$ 0,00';
+  const diasFim = calcularDiasAtePrazo(base.fimVigencia);
+  if (diasFim !== null && diasFim < 0) {
+    reforcoEmpenho = 'Encerrado';
+  } else if (qtdMesesDecorridos > 0) {
+    const mesesRestantesAno = Math.max(0, 12 - qtdMesesDecorridos);
+    const estimativaRestante = mesesRestantesAno * mediaMensal;
+    const diferenca = Math.round((saldoDisponivel - estimativaRestante) * 100) / 100;
+    reforcoEmpenho = formatarMoeda(diferenca);
+  } else {
+    reforcoEmpenho = formatarMoeda(saldoDisponivel);
+  }
+
+  return {
+    ...base,
+    valorGlobal,
+    totalGasto,
+    saldoDisponivel,
+    mediaMensal,
+    reforcoEmpenho,
+    execucaoMensalJson: JSON.stringify(meses),
+  };
+}
+
 export const ContratosView: React.FC<ContratosViewProps> = ({
   contratos,
-  perfilAtual,
   onSalvarContrato,
 }) => {
   const [busca, setBusca] = useState('');
@@ -64,8 +154,17 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
   const [contratoEditando, setContratoEditando] = useState<ContratoSLC | null>(
     null
   );
+  const [mesesForm, setMesesForm] = useState<ExecucaoMensalItem[]>(() =>
+    normalizarExecucaoMensal('[]')
+  );
 
-  const podeEditar = perfilAtual !== 'CONSULTA';
+  // Modal rápido de lançamento mensal (ao clicar direto em um mês Jan..Dez)
+  const [modalMesContrato, setModalMesContrato] = useState<ContratoSLC | null>(
+    null
+  );
+  const [mesFocoIdx, setMesFocoIdx] = useState<number>(0);
+  const [mesesRapidos, setMesesRapidos] = useState<ExecucaoMensalItem[]>([]);
+
   const hojeIso = new Date().toISOString().split('T')[0];
 
   const [form, setForm] = useState<ContratoSLC>({
@@ -120,10 +219,14 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
   const abrirModal = (c: ContratoSLC | null) => {
     setContratoEditando(c);
     if (c) {
-      setForm({ ...c });
+      const normalizados = normalizarExecucaoMensal(c.execucaoMensalJson);
+      setMesesForm(normalizados);
+      setForm({ ...c, execucaoMensalJson: JSON.stringify(normalizados) });
     } else {
       const proxAno = new Date();
       proxAno.setFullYear(proxAno.getFullYear() + 1);
+      const vazios = normalizarExecucaoMensal('[]');
+      setMesesForm(vazios);
       setForm({
         id: `cont-${Date.now()}`,
         numeroContrato: '',
@@ -143,7 +246,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
         totalGasto: 0,
         saldoDisponivel: 0,
         mediaMensal: 0,
-        reforcoEmpenho: '',
+        reforcoEmpenho: 'R$ 0,00',
         valorRpps: 0,
         neRpps: '',
         valorFps: 0,
@@ -166,7 +269,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
         fiscaisAdicionais: '',
         cndsJson: '{}',
         sancaoCeis: 'Nada Consta (CEIS/CGU Regular)',
-        execucaoMensalJson: '[]',
+        execucaoMensalJson: JSON.stringify(vazios),
         prepostoContato: '',
         emailContratada: '',
         ultimoTermo: 'Contrato Original',
@@ -174,6 +277,33 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
       });
     }
     setModalAberto(true);
+  };
+
+  const atualizarMesNoForm = (
+    idx: number,
+    campo: keyof ExecucaoMensalItem,
+    valor: string | number
+  ) => {
+    const novaLista = mesesForm.map((item, i) =>
+      i === idx ? { ...item, [campo]: valor } : item
+    );
+    setMesesForm(novaLista);
+    setForm((prev) => recalcularTotaisContrato(prev, novaLista));
+  };
+
+  const abrirLancamentoMensalRapido = (c: ContratoSLC, idxMes = 0) => {
+    const lista = normalizarExecucaoMensal(c.execucaoMensalJson);
+    setModalMesContrato(c);
+    setMesesRapidos(lista);
+    setMesFocoIdx(idxMes);
+  };
+
+  const salvarLancamentoMensalRapido = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalMesContrato) return;
+    const atualizado = recalcularTotaisContrato(modalMesContrato, mesesRapidos);
+    onSalvarContrato(atualizado, false);
+    setModalMesContrato(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -263,7 +393,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
             {contratos.length}
           </div>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {countProrrogaveis} Prorrogáveis (P) · {countNovasContratacoes} Nova Contratação (NP)
+            {countProrrogaveis} Prorrogáveis (P) · {countNovasContratacoes} Nova contratação (NP)
           </p>
         </div>
 
@@ -271,7 +401,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-indigo-500" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Total Empenhado (2026)
+              Total empenhado (2026)
             </span>
             <div className="rounded-xl bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
               <Landmark className="h-4 w-4" />
@@ -292,7 +422,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Saldo de Empenho Disponível
+              Saldo de empenho disponível
             </span>
             <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
               <Wallet className="h-4 w-4" />
@@ -302,7 +432,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
             {formatarMoeda(saldoTotalDisponivel)}
           </div>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Rateado entre Fundo RPPS e Fundo FPS
+            Rateado entre fundo RPPS e fundo FPS
           </p>
         </div>
 
@@ -310,7 +440,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
           <div className="absolute inset-x-0 top-0 h-1 bg-amber-500" />
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-              Janela de Vencimento (&le;90d)
+              Janela de vencimento (&le;90d)
             </span>
             <div className="rounded-xl bg-amber-100 p-2 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
               <CalendarClock className="h-4 w-4" />
@@ -320,12 +450,12 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
             {vencendoAte90d.length}
           </div>
           <p className="mt-1 text-xs font-medium text-amber-800/80 dark:text-amber-300/80">
-            Ordenados por Término (igual à aba &ldquo;vigentes&rdquo;)
+            Ordenados por término (igual à aba &ldquo;vigentes&rdquo;)
           </p>
         </div>
       </div>
 
-      {/* Busca, Filtros e Novo Contrato */}
+      {/* Busca, filtros e novo contrato */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
@@ -361,24 +491,22 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
               <option value="CRITICO_45">Crítico: vence em &le; 45 dias</option>
               <option value="JANELA_90">Alerta: vence em &le; 90 dias</option>
               <option value="JANELA_180">Planejamento: vence em &le; 180 dias</option>
-              <option value="NAO_PRORROGAVEL">Não Prorrogáveis (NP · Nova Contratação)</option>
+              <option value="NAO_PRORROGAVEL">Não prorrogáveis (NP · Nova contratação)</option>
               <option value="REGULAR">Vigência regular (&gt; 90 dias)</option>
             </select>
 
-            {podeEditar && (
-              <button
-                onClick={() => abrirModal(null)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-500"
-              >
-                <Plus className="h-4 w-4" />
-                Novo Contrato
-              </button>
-            )}
+            <button
+              onClick={() => abrirModal(null)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-500"
+            >
+              <Plus className="h-4 w-4" />
+              Novo contrato
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Lista de Contratos Vigentes ordenada por Término */}
+      {/* Lista de contratos vigentes ordenada por término */}
       <div className="space-y-4">
         {filtrados.map((c, index) => {
           const diasRestantes = calcularDiasAtePrazo(c.fimVigencia) ?? 0;
@@ -418,7 +546,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
               key={c.id}
               className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900/90 dark:hover:border-slate-700"
             >
-              {/* Cabeçalho do Card (Espelho da linha na aba 'vigentes') */}
+              {/* Cabeçalho do card (espelho da linha na aba 'vigentes') */}
               <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800 lg:flex-row lg:items-center">
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -434,11 +562,11 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                       Contrato: {c.numeroContrato}
                     </span>
                     <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-0.5 font-mono text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                      Proc. Mãe: {c.numeroEdocs}
+                      Proc. mãe: {c.numeroEdocs}
                     </span>
                     {c.processoPagamento && (
                       <span className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 font-mono text-xs font-bold text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300">
-                        Proc. Pagto 2026: {c.processoPagamento}
+                        Proc. pagto 2026: {c.processoPagamento}
                       </span>
                     )}
                     {c.modalidadeContratacao && (
@@ -478,7 +606,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                   </p>
                 </div>
 
-                {/* Bloco de Vigência e Ações */}
+                {/* Bloco de vigência e ações */}
                 <div className="flex flex-wrap items-center gap-2.5">
                   <div
                     className={`rounded-xl border px-4 py-2.5 text-right ${
@@ -521,25 +649,23 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                     )}
                   </button>
 
-                  {podeEditar && (
-                    <button
-                      onClick={() => abrirModal(c)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-600 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-600"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      Editar
-                    </button>
-                  )}
+                  <button
+                    onClick={() => abrirModal(c)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-blue-600 hover:text-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-blue-600"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    Editar
+                  </button>
                 </div>
               </div>
 
-              {/* 3 Colunas Principais: Execução Orçamentária (RPPS/FPS), Equipe de Fiscalização (G/GS/F/F1..F9) e Regras/Garantia */}
+              {/* 3 Colunas principais: execução orçamentária (RPPS/FPS), equipe de fiscalização (G/GS/F/F1..F9) e regras/garantia */}
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                {/* 1. Controle de Empenho, Gasto, Saldo e Rateio RPPS / FPS */}
+                {/* 1. Controle de empenho, gasto, saldo e rateio RPPS / FPS */}
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-700 dark:text-slate-300">
-                      Saldo Empenho ({pctSaldo}%)
+                      Saldo empenho ({pctSaldo}%)
                     </span>
                     <span className="font-extrabold text-emerald-700 dark:text-emerald-400">
                       {formatarMoeda(c.saldoDisponivel)}
@@ -562,7 +688,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                       <strong>Média/mês:</strong> {formatarMoeda(c.mediaMensal || 0)}
                     </div>
                     <div>
-                      <strong>Reforço Emp.:</strong> {c.reforcoEmpenho || '—'}
+                      <strong>Reforço emp.:</strong> {c.reforcoEmpenho || '—'}
                     </div>
                   </div>
                   {((c.valorRpps || 0) > 0 || (c.valorFps || 0) > 0) && (
@@ -579,12 +705,12 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                   )}
                 </div>
 
-                {/* 2. Equipe de Gestão e Fiscalização (G, GS, F, F1..F9) */}
+                {/* 2. Equipe de gestão e fiscalização (G, GS, F, F1..F9) */}
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                     <span className="flex items-center gap-1.5">
                       <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                      Gestores e Fiscais Designados
+                      Gestores e fiscais designados
                     </span>
                     <span className="font-mono text-[10px] text-slate-500">
                       {c.portariaFiscalizacao}
@@ -610,14 +736,14 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                     )}
                     {fiscaisExtrasList.length > 0 && (
                       <div className="pt-0.5 text-[10px] text-blue-700 dark:text-blue-300">
-                        <strong>Fiscais Setoriais (F2..F9):</strong>{' '}
+                        <strong>Fiscais setoriais (F2..F9):</strong>{' '}
                         {fiscaisExtrasList.join(' · ')}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* 3. Setor Solicitante, Pagamento, Garantia e Conformidade CEIS */}
+                {/* 3. Setor solicitante, pagamento, garantia e conformidade CEIS */}
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                     <span className="flex items-center gap-1.5">
@@ -631,7 +757,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                   <div className="mt-1.5 space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
                     <div className="flex flex-wrap gap-2">
                       <span>
-                        <strong>Simples Nac.:</strong> {c.optanteSimples || 'N'}
+                        <strong>Simples nac.:</strong> {c.optanteSimples || 'N'}
                       </span>
                       <span>·</span>
                       <span>
@@ -657,12 +783,12 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
               </div>
 
-              {/* Gaveta Expansível: Ficha Individual da Aba (Execução Jan..Dez + 6 CNDs + Objeto Completo) */}
+              {/* Gaveta expansível: ficha individual da aba (execução jan-dez + 6 CNDs + objeto completo) */}
               {isExpandido && (
                 <div className="mt-5 space-y-4 border-t border-slate-200 pt-4 dark:border-slate-800">
                   {c.objetoCompleto && (
                     <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                      <strong>Objeto Completo (Aba {c.abaPlanilha}):</strong>{' '}
+                      <strong>Objeto completo (Aba {c.abaPlanilha}):</strong>{' '}
                       {c.objetoCompleto}
                       {(c.prepostoContato || c.emailContratada) && (
                         <div className="mt-1 text-[11px] text-slate-500">
@@ -674,51 +800,67 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                     </div>
                   )}
 
-                  {/* Tabela de Execução Financeira Mensal (Jan a Dez) igual às linhas 16 a 27 das abas individuais */}
+                  {/* Tabela de execução financeira mensal (jan a dez) igual às linhas 16 a 27 das abas individuais */}
                   <div>
-                    <h4 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                      <BarChart3 className="h-3.5 w-3.5 text-blue-600" />
-                      Execução Financeira Mensal 2026 (Jan – Dez · Valores e Notas Fiscais / RPAs)
-                    </h4>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        <BarChart3 className="h-3.5 w-3.5 text-blue-600" />
+                        Execução financeira mensal 2026 (Jan – Dez · Valores e notas fiscais / RPAs)
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => abrirLancamentoMensalRapido(c, 0)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 transition hover:bg-blue-600 hover:text-white dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        Lançar / Editar valores mensais
+                      </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12">
-                      {execucaoMensal.map((item) => (
-                        <div
-                          key={item.mes}
-                          className={`rounded-xl border p-2.5 text-center ${
-                            item.valor > 0
-                              ? 'border-blue-200 bg-blue-50/50 dark:border-blue-500/30 dark:bg-blue-950/20'
-                              : 'border-slate-200 bg-slate-50/50 opacity-70 dark:border-slate-800 dark:bg-slate-950/40'
-                          }`}
-                        >
-                          <div className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400">
-                            {item.mes}/26
-                          </div>
-                          <div className="mt-1 text-xs font-extrabold text-slate-900 dark:text-white">
-                            {item.valor > 0 ? formatarMoeda(item.valor) : '—'}
-                          </div>
-                          {item.nf && (
-                            <div
-                              className="mt-0.5 truncate font-mono text-[10px] text-blue-700 dark:text-blue-300"
-                              title={`NF/RPA: ${item.nf}`}
-                            >
-                              NF: {item.nf}
+                      {normalizarExecucaoMensal(c.execucaoMensalJson).map(
+                        (item, idxMes) => (
+                          <button
+                            type="button"
+                            key={item.mes}
+                            onClick={() => abrirLancamentoMensalRapido(c, idxMes)}
+                            title={`Clique para lançar ou editar ${item.mes}/2026 (Valor, NF/RPA e Medição)`}
+                            className={`group relative rounded-xl border p-2.5 text-center transition hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-md ${
+                              item.valor > 0
+                                ? 'border-blue-200 bg-blue-50/50 dark:border-blue-500/30 dark:bg-blue-950/20'
+                                : 'border-slate-200 bg-slate-50/50 opacity-75 hover:opacity-100 dark:border-slate-800 dark:bg-slate-950/40'
+                            }`}
+                          >
+                            <div className="flex items-center justify-center gap-1 text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400">
+                              <span>{item.mes}/26</span>
+                              <Edit3 className="h-2.5 w-2.5 opacity-0 transition group-hover:opacity-100 text-blue-600 dark:text-blue-400" />
                             </div>
-                          )}
-                          {item.medicao && (
-                            <div className="truncate text-[9px] text-slate-500">
-                              {item.medicao}
+                            <div className="mt-1 text-xs font-extrabold text-slate-900 dark:text-white">
+                              {item.valor > 0 ? formatarMoeda(item.valor) : '—'}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            {item.nf && (
+                              <div
+                                className="mt-0.5 truncate font-mono text-[10px] text-blue-700 dark:text-blue-300"
+                                title={`NF/RPA: ${item.nf}`}
+                              >
+                                NF: {item.nf}
+                              </div>
+                            )}
+                            {item.medicao && (
+                              <div className="truncate text-[9px] text-slate-500">
+                                {item.medicao}
+                              </div>
+                            )}
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
 
-                  {/* Controle de Certidões Negativas de Débito (6 CNDs + Peça E-Docs) */}
+                  {/* Controle de certidões negativas de débito (6 CNDs + peça E-Docs) */}
                   <div>
                     <h4 className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                       <FileCheck2 className="h-3.5 w-3.5 text-emerald-600" />
-                      Regularidade Fiscal — Certidões Negativas (CNDs) e Peças E-Docs (#)
+                      Regularidade fiscal — Certidões negativas (CNDs) e peças E-Docs (#)
                     </h4>
                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
                       {[
@@ -776,7 +918,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
         })}
       </div>
 
-      {/* Modal de Cadastro / Edição de Contrato Alinhado com a Planilha */}
+      {/* Modal de cadastro / Edição de contrato alinhado com a planilha */}
       {modalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
@@ -802,7 +944,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Nº do Contrato *
+                    Nº do contrato *
                   </label>
                   <input
                     required
@@ -815,7 +957,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Nº Processo Mãe (E-Docs) *
+                    Nº processo mãe (E-Docs) *
                   </label>
                   <input
                     required
@@ -828,7 +970,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Nº Processo Pagto (2026)
+                    Nº processo pagto (2026)
                   </label>
                   <input
                     value={form.processoPagamento || ''}
@@ -855,7 +997,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Nome Curto / Empresa *
+                    Nome curto / Empresa *
                   </label>
                   <input
                     required
@@ -878,7 +1020,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Setor Solicitante
+                    Setor solicitante
                   </label>
                   <select
                     value={form.setorDemandante}
@@ -898,7 +1040,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Objeto Resumido *
+                  Objeto resumido *
                 </label>
                 <input
                   required
@@ -911,21 +1053,24 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Total Empenhado (R$)
+                    Total empenhado (R$)
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={form.valorGlobal}
-                    onChange={(e) =>
-                      setForm({ ...form, valorGlobal: Number(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const novoEmp = Number(e.target.value);
+                      setForm((prev) =>
+                        recalcularTotaisContrato(prev, mesesForm, novoEmp)
+                      );
+                    }}
                     className={inputClass}
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Total Gasto no Ano (R$)
+                    Total gasto no ano (R$) · Auto
                   </label>
                   <input
                     type="number"
@@ -939,7 +1084,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Saldo Empenho (R$)
+                    Saldo empenho (R$) · Auto
                   </label>
                   <input
                     type="number"
@@ -966,15 +1111,92 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                     className={inputClass}
                   >
                     <option value="P">P · Prorrogável</option>
-                    <option value="NP">NP · Não Prorrogável (Nova Contratação)</option>
+                    <option value="NP">NP · Não prorrogável (nova contratação)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Grade de lançamento mensal Jan-Dez dentro do modal de edição */}
+              <div className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4 dark:border-blue-500/20 dark:bg-blue-950/15">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      <BarChart3 className="h-4 w-4 text-blue-600" />
+                      Execução financeira mensal 2026 (Jan – Dez)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Ao preencher o valor de qualquer mês, o total gasto, saldo de empenho, média/mês ({formatarMoeda(form.mediaMensal || 0)}) e Reforço ({form.reforcoEmpenho || '—'}) são recalculados automaticamente.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                  {mesesForm.map((item, idx) => (
+                    <div
+                      key={item.mes}
+                      className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div className="mb-1.5 text-center text-[11px] font-extrabold uppercase text-blue-700 dark:text-blue-400">
+                        {item.mes}/2026
+                      </div>
+                      <div className="space-y-1.5">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500">
+                            Valor (R$)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.valor || ''}
+                            placeholder="0,00"
+                            onChange={(e) =>
+                              atualizarMesNoForm(
+                                idx,
+                                'valor',
+                                e.target.value === '' ? 0 : Number(e.target.value)
+                              )
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500">
+                            Nº NF / RPA
+                          </label>
+                          <input
+                            type="text"
+                            value={item.nf || ''}
+                            placeholder="Ex: 4373"
+                            onChange={(e) =>
+                              atualizarMesNoForm(idx, 'nf', e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 font-mono text-[11px] text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500">
+                            Medição / Obs.
+                          </label>
+                          <input
+                            type="text"
+                            value={item.medicao || ''}
+                            placeholder="Ex: med05"
+                            onChange={(e) =>
+                              atualizarMesNoForm(idx, 'medicao', e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-[11px] text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Início da Vigência
+                    Início da vigência
                   </label>
                   <input
                     type="date"
@@ -987,7 +1209,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Término (Fim Vigência)
+                    Fim da vigência
                   </label>
                   <input
                     type="date"
@@ -1013,7 +1235,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Regra Data Pagto
+                    Regra data pagto
                   </label>
                   <input
                     value={form.regraPagamento || ''}
@@ -1041,7 +1263,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Gestor Suplente (GS)
+                    Gestor suplente (GS)
                   </label>
                   <input
                     value={form.gestorSuplente || ''}
@@ -1053,7 +1275,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Fiscal Titular (F)
+                    Fiscal titular (F)
                   </label>
                   <input
                     value={form.fiscalTitular}
@@ -1065,7 +1287,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Fiscal Suplente (F1)
+                    Fiscal suplente (F1)
                   </label>
                   <input
                     value={form.fiscalSuplente}
@@ -1092,12 +1314,272 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500"
               >
                 <Save className="h-4 w-4" />
-                Salvar Contrato
+                Salvar contrato
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal rápido de lançamento de execução mensal (jan–dez + NF/RPA + medição) */}
+      {modalMesContrato && (() => {
+        const preview = recalcularTotaisContrato(modalMesContrato, mesesRapidos);
+        const mesAtual = mesesRapidos[mesFocoIdx] || {
+          mes: MESES_PADRAO[mesFocoIdx] || 'Jan',
+          valor: 0,
+          nf: '',
+          medicao: '',
+        };
+
+        const atualizarMesRapido = (
+          idx: number,
+          campo: keyof ExecucaoMensalItem,
+          valor: string | number
+        ) => {
+          setMesesRapidos((prev) =>
+            prev.map((item, i) =>
+              i === idx ? { ...item, [campo]: valor } : item
+            )
+          );
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Lançamento de execução financeira mensal (2026)
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Contrato <strong>{modalMesContrato.numeroContrato}</strong> ·{' '}
+                    {modalMesContrato.empresaContratada} (Aba:{' '}
+                    {modalMesContrato.abaPlanilha || '—'})
+                  </p>
+                </div>
+                <button
+                  onClick={() => setModalMesContrato(null)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form
+                id="form-execucao-mensal"
+                onSubmit={salvarLancamentoMensalRapido}
+                className="flex-1 space-y-5 overflow-y-auto p-6"
+              >
+                {/* Resumo orçamentário recalculado em tempo real */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+                    <div className="text-[10px] font-bold uppercase text-slate-500">
+                      Total empenhado
+                    </div>
+                    <div className="mt-1 text-sm font-extrabold text-slate-900 dark:text-white">
+                      {formatarMoeda(preview.valorGlobal)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-500/30 dark:bg-blue-950/25">
+                    <div className="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-300">
+                      Gasto 2026 (soma jan–dez)
+                    </div>
+                    <div className="mt-1 text-sm font-extrabold text-blue-900 dark:text-blue-200">
+                      {formatarMoeda(preview.totalGasto || 0)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-500/30 dark:bg-emerald-950/25">
+                    <div className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">
+                      Saldo de empenho atualizado
+                    </div>
+                    <div className="mt-1 text-sm font-extrabold text-emerald-800 dark:text-emerald-300">
+                      {formatarMoeda(preview.saldoDisponivel)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+                    <div className="text-[10px] font-bold uppercase text-slate-500">
+                      Média/Mês · Projeção
+                    </div>
+                    <div className="mt-1 text-xs font-extrabold text-slate-900 dark:text-white">
+                      {formatarMoeda(preview.mediaMensal || 0)}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      Reforço: {preview.reforcoEmpenho || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Destaque para o mês selecionado */}
+                <div className="rounded-2xl border-2 border-blue-500/40 bg-blue-50/40 p-4 dark:border-blue-500/40 dark:bg-blue-950/20">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+                      Mês em edição rápida: {mesAtual.mes}/2026
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {MESES_PADRAO.map((m, idx) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMesFocoIdx(idx)}
+                          className={`rounded-lg px-2 py-1 text-[10px] font-extrabold uppercase transition ${
+                            mesFocoIdx === idx
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : (mesesRapidos[idx]?.valor || 0) > 0
+                              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-200'
+                              : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                        Valor pago / liquidado em {mesAtual.mes}/26 (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        autoFocus
+                        value={mesAtual.valor || ''}
+                        placeholder="0,00"
+                        onChange={(e) =>
+                          atualizarMesRapido(
+                            mesFocoIdx,
+                            'valor',
+                            e.target.value === '' ? 0 : Number(e.target.value)
+                          )
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                        Nº da nota fiscal / RPA ({mesAtual.mes}/26)
+                      </label>
+                      <input
+                        type="text"
+                        value={mesAtual.nf || ''}
+                        placeholder="Ex: 4373"
+                        onChange={(e) =>
+                          atualizarMesRapido(mesFocoIdx, 'nf', e.target.value)
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                        Medição / Observação ({mesAtual.mes}/26)
+                      </label>
+                      <input
+                        type="text"
+                        value={mesAtual.medicao || ''}
+                        placeholder="Ex: med05"
+                        onChange={(e) =>
+                          atualizarMesRapido(
+                            mesFocoIdx,
+                            'medicao',
+                            e.target.value
+                          )
+                        }
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visão anual completa (jan a dez) para edição em lote */}
+                <div>
+                  <div className="mb-2 text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    Todos os meses do exercício 2026 (jan – dez)
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                    {mesesRapidos.map((item, idx) => (
+                      <div
+                        key={item.mes}
+                        onClick={() => setMesFocoIdx(idx)}
+                        className={`cursor-pointer rounded-xl border p-2.5 transition ${
+                          mesFocoIdx === idx
+                            ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20 dark:border-blue-400 dark:bg-blue-950/30'
+                            : item.valor > 0
+                            ? 'border-blue-200 bg-white dark:border-slate-700 dark:bg-slate-900'
+                            : 'border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-950/50'
+                        }`}
+                      >
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <span className="text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-300">
+                            {item.mes}/26
+                          </span>
+                          {item.valor > 0 && (
+                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.valor || ''}
+                            placeholder="R$ 0,00"
+                            onChange={(e) =>
+                              atualizarMesRapido(
+                                idx,
+                                'valor',
+                                e.target.value === '' ? 0 : Number(e.target.value)
+                              )
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                          />
+                          <input
+                            type="text"
+                            value={item.nf || ''}
+                            placeholder="Nº NF / RPA"
+                            onChange={(e) =>
+                              atualizarMesRapido(idx, 'nf', e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 font-mono text-[10px] text-slate-700 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300"
+                          />
+                          <input
+                            type="text"
+                            value={item.medicao || ''}
+                            placeholder="Medição/Obs"
+                            onChange={(e) =>
+                              atualizarMesRapido(idx, 'medicao', e.target.value)
+                            }
+                            className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] text-slate-600 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </form>
+
+              <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
+                <button
+                  type="button"
+                  onClick={() => setModalMesContrato(null)}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  form="form-execucao-mensal"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500"
+                >
+                  <Save className="h-4 w-4" />
+                  Salvar lançamentos mensais
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

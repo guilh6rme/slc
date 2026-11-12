@@ -15,7 +15,6 @@ import {
   CategoriaProcesso,
   ETAPAS_KANBAN,
   HistoricoAlteracao,
-  PerfilUsuario,
   PrioridadeProcesso,
   ProcessoSLC,
   SETORES_DEMANDANTES,
@@ -28,7 +27,6 @@ interface ProcessoModalProps {
   modoInicial: 'detalhes' | 'editar' | 'novo';
   processo: ProcessoSLC | null;
   historico: HistoricoAlteracao[];
-  perfilAtual: PerfilUsuario;
   responsaveisSugeridos: string[];
   onFechar: () => void;
   onSalvar: (dados: ProcessoSLC, isNovo: boolean) => void;
@@ -40,7 +38,6 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
   modoInicial,
   processo,
   historico,
-  perfilAtual,
   responsaveisSugeridos,
   onFechar,
   onSalvar,
@@ -48,7 +45,6 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
 }) => {
   const [aba, setAba] = useState<'ficha' | 'auditoria'>('ficha');
   const [editando, setEditando] = useState(modoInicial !== 'detalhes');
-  const podeEditar = perfilAtual !== 'CONSULTA';
 
   const hojeIso = new Date().toISOString().split('T')[0];
 
@@ -145,7 +141,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Código Interno: {form.codigoInterno}
+                Código interno: {form.codigoInterno}
               </p>
             </div>
           </div>
@@ -158,7 +154,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
           </button>
         </div>
 
-        {/* Abas (Ficha vs Auditoria) */}
+        {/* Abas (ficha vs auditoria) */}
         {modoInicial !== 'novo' && (
           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-100/70 px-6 dark:border-slate-800 dark:bg-slate-950/50">
             <div className="flex gap-6">
@@ -171,7 +167,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                     : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
-                Ficha do Processo
+                Ficha do processo
               </button>
               <button
                 type="button"
@@ -183,7 +179,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 }`}
               >
                 <History className="h-4 w-4" />
-                Histórico de Auditoria ({historicoDoProcesso.length})
+                Histórico de auditoria ({historicoDoProcesso.length})
               </button>
             </div>
 
@@ -198,20 +194,20 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                   Abrir referência E-Docs <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
-              {podeEditar && aba === 'ficha' && !editando && (
+              {aba === 'ficha' && !editando && (
                 <button
                   type="button"
                   onClick={() => setEditando(true)}
                   className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
                 >
-                  Editar Dados
+                  Editar dados
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Corpo do Modal */}
+        {/* Corpo do modal */}
         <div className="flex-1 overflow-y-auto p-6">
           {aba === 'auditoria' ? (
             <div className="space-y-4">
@@ -255,12 +251,12 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 </div>
               )}
             </div>
-          ) : editando && podeEditar ? (
+          ) : editando ? (
             <form id="form-processo" onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Nº Referência E-Docs *
+                    Nº referência E-Docs *
                   </label>
                   <input
                     required
@@ -272,7 +268,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Data de Entrada na SLC *
+                    Data de entrada na SLC *
                   </label>
                   <input
                     type="date"
@@ -284,7 +280,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Prazo da Providência Atual
+                    Prazo da providência atual
                   </label>
                   <input
                     type="date"
@@ -299,7 +295,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Assunto / Objeto Resumido *
+                  Assunto / Objeto resumido *
                 </label>
                 <input
                   required
@@ -313,7 +309,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Categoria / Tipo de Processo
+                    Categoria / Tipo de processo
                   </label>
                   <select
                     value={form.categoria}
@@ -335,7 +331,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
 
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Setor Demandante
+                    Setor demandante
                   </label>
                   <select
                     value={form.setorDemandante}
@@ -356,7 +352,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Situação / Etapa Interna
+                    Situação / Etapa interna
                   </label>
                   <select
                     value={form.situacao}
@@ -396,7 +392,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
 
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Prioridade Operacional
+                    Prioridade operacional
                   </label>
                   <select
                     value={form.prioridade}
@@ -421,7 +417,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Pendência / Providência Imediata
+                  Pendência / Providência imediata
                 </label>
                 <input
                   value={form.pendenciaAtual ?? ''}
@@ -433,7 +429,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Descrição Detalhada do Objeto
+                  Descrição detalhada do objeto
                 </label>
                 <textarea
                   rows={2}
@@ -448,7 +444,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
               <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/5">
                 <label className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
                   <ShieldAlert className="h-4 w-4" />
-                  Observações Internas da SLC (Restrito — Nunca exibido na TV)
+                  Observações internas da SLC (Restrito — Nunca exibido na TV)
                 </label>
                 <textarea
                   rows={2}
@@ -468,7 +464,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 dark:border-slate-700"
                   />
                   <span>
-                    <strong>Ocultar este processo do Modo TV</strong> (para processos com
+                    <strong>Ocultar este processo do modo TV</strong> (para processos com
                     apuração sensível ou sigilo administrativo)
                   </span>
                 </label>
@@ -502,7 +498,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 </div>
                 <div>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Setor Demandante
+                    Setor demandante
                   </span>
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                     {form.setorDemandante}
@@ -518,7 +514,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                 </div>
                 <div>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Data de Entrada · Última Atualização Interna
+                    Data de entrada · Última atualização interna
                   </span>
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                     {new Date(form.dataEntrada + 'T00:00:00').toLocaleDateString('pt-BR')}{' '}
@@ -530,7 +526,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
               {form.pendenciaAtual && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-500/30 dark:bg-blue-500/10">
                   <span className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                    Providência / Pendência Atual
+                    Providência / Pendência atual
                   </span>
                   <p className="mt-1 text-sm font-medium text-slate-900 dark:text-white">
                     {form.pendenciaAtual}
@@ -541,7 +537,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
               <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
                   <Lock className="h-3.5 w-3.5" />
-                  Observações Internas (Visível apenas no ambiente administrativo)
+                  Observações internas (Visível apenas no ambiente administrativo)
                 </div>
                 <p className="mt-1 text-sm text-amber-900 dark:text-amber-100/90">
                   {form.observacoesInternas || 'Nenhuma observação interna registrada.'}
@@ -554,13 +550,13 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
         {/* Rodapé */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
           <div>
-            {modoInicial !== 'novo' && podeEditar && onExcluir && processo && (
+            {modoInicial !== 'novo' && onExcluir && processo && (
               <button
                 type="button"
                 onClick={() => onExcluir(processo.id)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-300"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Excluir Processo
+                <Trash2 className="h-3.5 w-3.5" /> Excluir processo
               </button>
             )}
           </div>
@@ -572,14 +568,14 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
             >
               Fechar
             </button>
-            {aba === 'ficha' && editando && podeEditar && (
+            {aba === 'ficha' && editando && (
               <button
                 type="submit"
                 form="form-processo"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500"
               >
                 <Save className="h-4 w-4" />
-                Salvar Processo
+                Salvar processo
               </button>
             )}
           </div>
