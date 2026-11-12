@@ -191,11 +191,10 @@ export const ImportarPlanilhaModal: React.FC<ImportarPlanilhaModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Importar Processos via Planilha CSV
+                Importar processos via planilha CSV
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Selecione um arquivo .CSV (separado por ponto e vírgula ou vírgula) para
-                importar registros para o sistema
+                Selecione um arquivo .CSV para importar registros para o sistema
               </p>
             </div>
           </div>
@@ -248,22 +247,21 @@ export const ImportarPlanilhaModal: React.FC<ImportarPlanilhaModalProps> = ({
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
                     <Table className="h-4 w-4 text-blue-500" />
-                    Pré-visualização antes de gravar
+                    Pré-visualização
                   </div>
                   <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                     Você poderá revisar todas as linhas lidas do arquivo antes de
-                    confirmar a inserção no banco de dados.
+                    confirmar a inserção dos dados.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
                     <Database className="h-4 w-4 text-emerald-500" />
-                    Persistência no Banco (MySQL / FastAPI)
+                    Dados armazenados de forma segura
                   </div>
                   <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-                    Cada linha importada é gravada via API e registrada automaticamente
-                    na trilha de auditoria.
+                    Cada linha importada é gravada e registrada automaticamente na trilha de auditoria.
                   </p>
                 </div>
               </div>
@@ -337,7 +335,7 @@ export const ImportarPlanilhaModal: React.FC<ImportarPlanilhaModalProps> = ({
                 <CheckCircle2 className="h-9 w-9" />
               </div>
               <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">
-                {selecionados.length} Processo(s) Importado(s) com Sucesso!
+                {selecionados.length} Processo(s) importado(s) com sucesso!
               </h3>
             </div>
           )}
@@ -359,7 +357,7 @@ export const ImportarPlanilhaModal: React.FC<ImportarPlanilhaModalProps> = ({
               onClick={confirmarImportacao}
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 disabled:opacity-40"
             >
-              Confirmar Importação ({selecionados.length})
+              Confirmar importação ({selecionados.length})
               <ArrowRight className="h-4 w-4" />
             </button>
           )}

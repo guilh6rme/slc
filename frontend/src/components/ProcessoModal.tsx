@@ -444,7 +444,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
               <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/5">
                 <label className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
                   <ShieldAlert className="h-4 w-4" />
-                  Observações internas da SLC (Restrito — Nunca exibido na TV)
+                  Observações internas (Restrito — Nunca exibido na TV)
                 </label>
                 <textarea
                   rows={2}
