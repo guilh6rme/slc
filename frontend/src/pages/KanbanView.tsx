@@ -26,6 +26,7 @@ import {
   CndsContrato,
   ConfiguracaoTV,
   ContratoSLC,
+  DadosContinuidade2025,
   ETAPAS_KANBAN,
   ExecucaoMensalItem,
   ProcessoSLC,
@@ -84,7 +85,26 @@ function formatarDataBR(iso?: string | null): string {
   }
 }
 
-function parseExecucaoMensal(c: ContratoSLC): ExecucaoMensalItem[] {
+function parseDados2025Contrato(c: ContratoSLC): DadosContinuidade2025 {
+  if (!c.dados2025Json) return { possuiHistorico2025: false };
+  try {
+    const parsed = JSON.parse(c.dados2025Json);
+    return parsed && typeof parsed === 'object'
+      ? { possuiHistorico2025: Boolean(parsed.possuiHistorico2025), ...parsed }
+      : { possuiHistorico2025: false };
+  } catch {
+    return { possuiHistorico2025: false };
+  }
+}
+
+function parseExecucaoMensal(
+  c: ContratoSLC,
+  ano: '2026' | '2025' = '2026'
+): ExecucaoMensalItem[] {
+  if (ano === '2025') {
+    const d25 = parseDados2025Contrato(c);
+    return Array.isArray(d25.execucaoMensal2025) ? d25.execucaoMensal2025 : [];
+  }
   if (!c.execucaoMensalJson) return [];
   try {
     const parsed = JSON.parse(c.execucaoMensalJson);
@@ -170,6 +190,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     useState<boolean>(false);
 
   // Estados específicos do mapa de execução mensal (Jan-Dez)
+  const [anoMatriz, setAnoMatriz] = useState<'2026' | '2025'>('2026');
   const [mesReferencia, setMesReferencia] = useState<string>('Out');
   const [filtroExecucaoMensal, setFiltroExecucaoMensal] = useState<
     'TODOS' | 'PAGOS_MES' | 'PENDENTES_MES' | 'CND_VENCIDA' | 'REFORCO_EMPENHO'
@@ -320,24 +341,33 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   // DADOS DO MAPA DE EXECUÇÃO MENSAL JAN-DEZ (MODO 2)
   // ============================================================================
   const resumoExecucaoMensal = useMemo(() => {
-    const totalEmpenhado = contratosFiltradosBase.reduce(
-      (acc, c) => acc + (c.valorGlobal || 0),
-      0
-    );
-    const totalPagoAno = contratosFiltradosBase.reduce(
-      (acc, c) => acc + (c.totalGasto || 0),
-      0
-    );
-    const totalSaldo = contratosFiltradosBase.reduce(
-      (acc, c) => acc + (c.saldoDisponivel || 0),
-      0
-    );
+    const totalEmpenhado = contratosFiltradosBase.reduce((acc, c) => {
+      if (anoMatriz === '2025') {
+        const d25 = parseDados2025Contrato(c);
+        return acc + (d25.valorEmpenhado2025 || 0);
+      }
+      return acc + (c.valorGlobal || 0);
+    }, 0);
+    const totalPagoAno = contratosFiltradosBase.reduce((acc, c) => {
+      if (anoMatriz === '2025') {
+        const d25 = parseDados2025Contrato(c);
+        return acc + (d25.totalGasto2025 || 0);
+      }
+      return acc + (c.totalGasto || 0);
+    }, 0);
+    const totalSaldo = contratosFiltradosBase.reduce((acc, c) => {
+      if (anoMatriz === '2025') {
+        const d25 = parseDados2025Contrato(c);
+        return acc + (d25.saldoEmpenho2025 || 0);
+      }
+      return acc + (c.saldoDisponivel || 0);
+    }, 0);
 
     let qtdPagosNoMes = 0;
     let totalPagoNoMes = 0;
 
     for (const c of contratosFiltradosBase) {
-      const exec = parseExecucaoMensal(c);
+      const exec = parseExecucaoMensal(c, anoMatriz);
       const reg = exec.find(
         (x) => x.mes.toLowerCase() === mesReferencia.toLowerCase()
       );
@@ -360,13 +390,16 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
       totalPagoNoMes,
       qtdComReforco,
     };
-  }, [contratosFiltradosBase, mesReferencia]);
+  }, [contratosFiltradosBase, mesReferencia, anoMatriz]);
 
   const contratosMatrizFiltrados = useMemo(() => {
     return contratosFiltradosBase
       .filter((c) => {
+        if (anoMatriz === '2025' && !parseDados2025Contrato(c).possuiHistorico2025) {
+          return false;
+        }
         if (filtroExecucaoMensal === 'TODOS') return true;
-        const exec = parseExecucaoMensal(c);
+        const exec = parseExecucaoMensal(c, anoMatriz);
         const m = exec.find(
           (x) => x.mes.toLowerCase() === mesReferencia.toLowerCase()
         );
@@ -384,7 +417,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
         const numB = parseInt(b.abaPlanilha || '999', 10);
         return numA - numB;
       });
-  }, [contratosFiltradosBase, filtroExecucaoMensal, mesReferencia]);
+  }, [contratosFiltradosBase, filtroExecucaoMensal, mesReferencia, anoMatriz]);
 
   // ============================================================================
   // DADOS DO KANBAN E-DOCS POR ETAPA (MODO 3)
@@ -1094,9 +1127,33 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             </div>
           </div>
 
-          {/* Filtros rápidos do mapa mensal */}
+          {/* Filtros rápidos do mapa mensal + Seletor de Exercício (2026 vs 2025) */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
             <div className="flex flex-wrap items-center gap-2">
+              <div className="mr-2 inline-flex rounded-xl border border-slate-200 bg-slate-100 p-0.5 dark:border-slate-700 dark:bg-slate-950">
+                <button
+                  type="button"
+                  onClick={() => setAnoMatriz('2026')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    anoMatriz === '2026'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
+                >
+                  Exercício 2026 (Atual)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnoMatriz('2025')}
+                  className={`rounded-lg px-3 py-1 text-xs font-extrabold transition ${
+                    anoMatriz === '2025'
+                      ? 'bg-amber-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
+                >
+                  Continuidade 2025 (Histórico)
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setFiltroExecucaoMensal('TODOS')}
@@ -1194,7 +1251,16 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
                   {contratosMatrizFiltrados.map((c) => {
                     const cndsVencidas = obterCndsVencidasContrato(c);
-                    const execMensal = parseExecucaoMensal(c);
+                    const d25 = parseDados2025Contrato(c);
+                    const execMensal = parseExecucaoMensal(c, anoMatriz);
+                    const totalPagoLinha =
+                      anoMatriz === '2025'
+                        ? d25.totalGasto2025 || 0
+                        : c.totalGasto || 0;
+                    const saldoLinha =
+                      anoMatriz === '2025'
+                        ? d25.saldoEmpenho2025 || 0
+                        : c.saldoDisponivel || 0;
                     const reforcoVal = parseReforcoNumerico(c.reforcoEmpenho);
                     const isExpandido = contratoExpandidoMatrizId === c.id;
                     const proc = obterProcessoDoContrato(c);
@@ -1219,7 +1285,9 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           <td className="px-2 py-2.5">
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono text-xs font-extrabold text-slate-900 dark:text-white">
-                                {c.numeroContrato}
+                                {anoMatriz === '2025' && d25.numeroContrato2025
+                                  ? d25.numeroContrato2025
+                                  : c.numeroContrato}
                               </span>
                               <span
                                 className={`rounded px-1 py-0.2 text-[9px] font-bold ${
@@ -1230,6 +1298,16 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                               >
                                 {c.prorrogavel ? 'P' : 'NP'}
                               </span>
+                              {d25.possuiHistorico2025 && (
+                                <span
+                                  title={`Continuidade 2025 → 2026 (Executado em 2025: ${formatarMoedaBRL(
+                                    d25.totalGasto2025 || 0
+                                  )})`}
+                                  className="rounded bg-sky-100 px-1 py-0.2 text-[9px] font-bold text-sky-800 dark:bg-sky-500/20 dark:text-sky-300"
+                                >
+                                  25→26
+                                </span>
+                              )}
                             </div>
                             <div className="line-clamp-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                               {c.empresaContratada}
@@ -1255,10 +1333,10 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                                 key={m}
                                 title={
                                   val > 0
-                                    ? `${m}/2026: ${formatarMoedaBRL(val)}${
+                                    ? `${m}/${anoMatriz}: ${formatarMoedaBRL(val)}${
                                         nf ? ` · NF: ${nf}` : ''
                                       }`
-                                    : `${m}/2026: Sem lançamento`
+                                    : `${m}/${anoMatriz}: Sem lançamento`
                                 }
                                 className={`px-2 py-2.5 text-center font-mono text-[11px] ${
                                   isMesAtivo
@@ -1280,18 +1358,18 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           })}
 
                           <td className="px-2.5 py-2.5 text-right font-mono text-xs font-extrabold text-slate-900 dark:text-white">
-                            {formatarValorCurto(c.totalGasto || 0)}
+                            {formatarValorCurto(totalPagoLinha)}
                           </td>
 
                           <td className="px-2.5 py-2.5 text-right font-mono text-xs font-bold">
                             <span
                               className={
-                                reforcoVal > 0
+                                reforcoVal > 0 && anoMatriz === '2026'
                                   ? 'text-purple-600 dark:text-purple-400'
                                   : 'text-blue-600 dark:text-blue-400'
                               }
                             >
-                              {formatarValorCurto(c.saldoDisponivel)}
+                              {formatarValorCurto(saldoLinha)}
                             </span>
                           </td>
 

@@ -81,6 +81,26 @@ export interface ExecucaoMensalItem {
   medicao: string;
 }
 
+export interface DadosContinuidade2025 {
+  possuiHistorico2025: boolean;
+  aba2025?: string;
+  tipoContinuidade?: 'MESMO_CONTRATO' | 'NOVA_CONTRATACAO_CONTINUIDADE';
+  numeroContrato2025?: string;
+  processoMae2025?: string;
+  processoPagamento2025?: string;
+  valorEmpenhado2025?: number;
+  totalGasto2025?: number;
+  saldoEmpenho2025?: number;
+  mediaMensal2025?: number;
+  valorRpps2025?: number;
+  neRpps2025?: string;
+  valorFps2025?: number;
+  neFps2025?: string;
+  inicioVigencia2025?: string;
+  fimVigencia2025?: string;
+  execucaoMensal2025?: ExecucaoMensalItem[];
+}
+
 export interface ContratoSLC {
   id: string;
   numeroContrato: string;
@@ -124,6 +144,7 @@ export interface ContratoSLC {
   cndsJson?: string;
   sancaoCeis?: string;
   execucaoMensalJson?: string;
+  dados2025Json?: string;
   prepostoContato?: string;
   emailContratada?: string;
   ultimoTermo: string;

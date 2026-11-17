@@ -69,6 +69,7 @@ class ContratoModel(Base):
     cnds_json = Column(Text, nullable=True, default="{}")  # JSON com validades e peças das 6 CNDs
     sancao_ceis = Column(String(255), nullable=True, default="Nada Consta")  # Cruzamento CEIS
     execucao_mensal_json = Column(Text, nullable=True, default="[]")  # JSON com jan..dez (valor e NF)
+    dados_2025_json = Column(Text, nullable=True, default="{}")  # Histórico de continuidade 2025 (empenho, gasto, jan..dez 2025)
     preposto_contato = Column(String(255), nullable=True, default="")
     email_contratada = Column(String(180), nullable=True, default="")
     ultimo_termo = Column(String(180), nullable=False, default="Contrato Original")

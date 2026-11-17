@@ -12,6 +12,7 @@ from app.models import ContratoModel, ProcessoModel, HistoricoAlteracaoModel
 from app.main import _ensure_contrato_columns
 
 DEFAULT_XLSM = r"C:/Users/guilherme.pereira/.gemini/antigravity/brain/36b88611-ad7d-45d8-a1fd-9d9ec3793595/.user_uploaded/media_1793892475851_714b6e40.xlsm"
+DEFAULT_XLSM_2025 = r"C:/Users/guilherme.pereira/.gemini/antigravity/brain/36b88611-ad7d-45d8-a1fd-9d9ec3793595/scratch/CONTROLE_CONTRATOS-2025_B.xlsm"
 
 MODALIDADES_MAP = {
     "I": "Inexigibilidade (I)",
@@ -81,12 +82,175 @@ def clean_str(val: str) -> str:
     return s
 
 
-def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM):
+def extrair_historico_2025(xlsm_2025_path: str = DEFAULT_XLSM_2025) -> dict:
+    """
+    Lê a planilha CONTROLE CONTRATOS-2025 B.xlsm e retorna um dicionário indexado
+    pela aba (e aliases de renovação como CORREIOS26, ETAA26, PRIME26) contendo
+    toda a execução orçamentária e mensal (Jan/25 a Dez/25) de 2025.
+    """
+    if not xlsm_2025_path or not os.path.exists(xlsm_2025_path):
+        return {}
+
+    ns = {
+        "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+
+    mapa_2025 = {}
+    with zipfile.ZipFile(xlsm_2025_path, "r") as z:
+        ss_root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+        shared_strings = []
+        for si in ss_root.findall("main:si", ns):
+            texts = [t.text for t in si.findall(".//main:t", ns) if t.text]
+            shared_strings.append("".join(texts))
+
+        wb_root = ET.fromstring(z.read("xl/workbook.xml"))
+        rels_root = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+        rel_map = {rel.attrib["Id"]: rel.attrib["Target"] for rel in rels_root}
+
+        sheet_files = {}
+        for sh in wb_root.findall(".//main:sheets/main:sheet", ns):
+            name = sh.attrib.get("name")
+            rid = sh.attrib.get(
+                "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+            )
+            target = rel_map.get(rid, "")
+            if not target.startswith("xl/"):
+                target = "xl/" + target
+            sheet_files[name] = target
+
+        def read_sheet_2025(sheet_name):
+            target = sheet_files.get(sheet_name)
+            if not target or target not in z.namelist():
+                return {}, {}
+            root = ET.fromstring(z.read(target))
+            rows_val = {}
+            rows_form = {}
+            for r in root.findall(".//main:sheetData/main:row", ns):
+                r_idx = int(r.attrib.get("r", 0))
+                c_vals = {}
+                c_forms = {}
+                for c in r.findall("main:c", ns):
+                    col = "".join([ch for ch in c.attrib.get("r", "") if ch.isalpha()])
+                    c_type = c.attrib.get("t")
+                    v_el = c.find("main:v", ns)
+                    f_el = c.find("main:f", ns)
+                    val = v_el.text if v_el is not None else ""
+                    if c_type == "s" and val.isdigit():
+                        val = shared_strings[int(val)]
+                    if val != "":
+                        c_vals[col] = val
+                    if f_el is not None and f_el.text:
+                        c_forms[col] = f_el.text
+                rows_val[r_idx] = c_vals
+                rows_form[r_idx] = c_forms
+            return rows_val, rows_form
+
+        geral_vals, geral_forms = read_sheet_2025("geral")
+
+        meses_cols = [
+            ("Jan", "J", "AV", "AW"),
+            ("Fev", "K", "AZ", "BA"),
+            ("Mar", "L", "BD", "BE"),
+            ("Abr", "M", "BH", "BI"),
+            ("Mai", "N", "BL", "BM"),
+            ("Jun", "O", "BP", "BQ"),
+            ("Jul", "P", "BT", "BU"),
+            ("Ago", "Q", "BX", "BY"),
+            ("Set", "R", "CB", "CC"),
+            ("Out", "S", "CF", "CG"),
+            ("Nov", "T", "CJ", "CK"),
+            ("Dez", "U", "CN", "CO"),
+        ]
+
+        for r_idx in sorted(geral_vals.keys()):
+            if r_idx < 2:
+                continue
+            g_row = geral_vals.get(r_idx, {})
+            g_form = geral_forms.get(r_idx, {})
+            form_a = g_form.get("A", "")
+            aba_nome = form_a.split("!")[0].strip("'") if "!" in form_a else ""
+            if not aba_nome or aba_nome in ("Z15", "Z16", "Z17"):
+                continue
+
+            ind_vals, _ = read_sheet_2025(aba_nome)
+            row9 = ind_vals.get(9, {})
+            row10 = ind_vals.get(10, {})
+            row11 = ind_vals.get(11, {})
+            row12 = ind_vals.get(12, {})
+            vlr_rpps = round(
+                sum(parse_float(row9.get(col, "0")) for col in ("B", "C", "D", "E", "F")),
+                2,
+            )
+            ne_rpps = " / ".join(
+                [
+                    clean_str(row10.get(col, ""))
+                    for col in ("B", "C", "D", "E", "F")
+                    if clean_str(row10.get(col, ""))
+                ]
+            )
+            vlr_fps = round(
+                sum(parse_float(row11.get(col, "0")) for col in ("B", "C", "D", "E", "F")),
+                2,
+            )
+            ne_fps = " / ".join(
+                [
+                    clean_str(row12.get(col, ""))
+                    for col in ("B", "C", "D", "E", "F")
+                    if clean_str(row12.get(col, ""))
+                ]
+            )
+
+            execucao_2025 = []
+            for m_nome, col_vlr, col_nf, col_obs in meses_cols:
+                execucao_2025.append(
+                    {
+                        "mes": m_nome,
+                        "valor": parse_float(g_row.get(col_vlr, "0")),
+                        "nf": clean_str(g_row.get(col_nf, "")),
+                        "medicao": clean_str(g_row.get(col_obs, "")),
+                    }
+                )
+
+            registro_2025 = {
+                "possuiHistorico2025": True,
+                "aba2025": aba_nome,
+                "tipoContinuidade": "MESMO_CONTRATO",
+                "numeroContrato2025": clean_str(g_row.get("B", "")) or "S/N",
+                "processoMae2025": clean_str(g_row.get("AA", "")),
+                "processoPagamento2025": clean_str(g_row.get("A", "")),
+                "valorEmpenhado2025": parse_float(g_row.get("D", "0")),
+                "totalGasto2025": parse_float(g_row.get("E", "0")),
+                "saldoEmpenho2025": parse_float(g_row.get("F", "0")),
+                "mediaMensal2025": parse_float(g_row.get("V", "0")),
+                "valorRpps2025": vlr_rpps,
+                "neRpps2025": ne_rpps,
+                "valorFps2025": vlr_fps,
+                "neFps2025": ne_fps,
+                "inicioVigencia2025": excel_serial_to_iso(g_row.get("H", "")),
+                "fimVigencia2025": excel_serial_to_iso(g_row.get("I", "")),
+                "execucaoMensal2025": execucao_2025,
+            }
+            mapa_2025[aba_nome] = registro_2025
+
+            # Mapeia também as 3 contratações renovadas em 2026 (CORREIOS -> CORREIOS26, ETAA -> ETAA26, PRIME -> PRIME26)
+            if aba_nome in ("CORREIOS", "ETAA", "PRIME"):
+                alias_26 = f"{aba_nome}26"
+                mapa_2025[alias_26] = {
+                    **registro_2025,
+                    "tipoContinuidade": "NOVA_CONTRATACAO_CONTINUIDADE",
+                }
+
+    return mapa_2025
+
+
+def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM, xlsm_2025_path: str = DEFAULT_XLSM_2025):
     if not os.path.exists(xlsm_path):
         raise FileNotFoundError(f"Arquivo XLSM não encontrado: {xlsm_path}")
 
     Base.metadata.create_all(bind=engine)
     _ensure_contrato_columns()
+    historico_2025_map = extrair_historico_2025(xlsm_2025_path)
 
     ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
           "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
@@ -336,6 +500,9 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM):
                 preposto_full = f"{preposto} ({telefones})" if preposto and telefones else (preposto or telefones)
                 email_emp = clean_str(g_row.get("CT", ""))
 
+                dados_2025 = historico_2025_map.get(aba_nome, {"possuiHistorico2025": False})
+                dados_2025_str = json.dumps(dados_2025, ensure_ascii=False)
+
                 contrato_id = f"cont-{aba_nome.lower() if aba_nome else r_idx}"
                 modelo = ContratoModel(
                     id=contrato_id,
@@ -380,6 +547,7 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM):
                     cnds_json=json.dumps(cnds_dict, ensure_ascii=False),
                     sancao_ceis=sancao_ceis_str,
                     execucao_mensal_json=json.dumps(execucao_mensal, ensure_ascii=False),
+                    dados_2025_json=dados_2025_str,
                     preposto_contato=preposto_full,
                     email_contratada=email_emp,
                     ultimo_termo=ultimo_termo_str,
@@ -440,13 +608,20 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM):
                 else:
                     cat_proc = "Formalização de Contrato"
 
+                resumo_2025_proc = ""
+                if dados_2025.get("possuiHistorico2025"):
+                    proc_pag_25 = dados_2025.get("processoPagamento2025") or "—"
+                    gasto_25 = dados_2025.get("totalGasto2025") or 0.0
+                    emp_25 = dados_2025.get("valorEmpenhado2025") or 0.0
+                    resumo_2025_proc = f" | Continuidade 2025: Proc. Pagto 2025 ({proc_pag_25}), Empenho 2025 R$ {emp_25:,.2f}, Executado 2025 R$ {gasto_25:,.2f}"
+
                 proc_id = f"proc-{aba_nome.lower() if aba_nome else r_idx}"
                 proc = ProcessoModel(
                     id=proc_id,
                     codigo_interno=f"SLC-2026-{len(processos_importados)+1:03d}",
                     numero_edocs=proc_pagto if proc_pagto else proc_mae,
                     assunto=f"{empresa_curta} — {objeto_resumo} (Contrato {num_contrato})",
-                    objeto_detalhado=f"{objeto_completo} | Processo Mãe: {proc_mae} | Processo Pagto: {proc_pagto or '—'} | ID TCES: {id_tces or 'N/A'}",
+                    objeto_detalhado=f"{objeto_completo} | Processo Mãe: {proc_mae} | Processo Pagto 2026: {proc_pagto or '—'} | ID TCES: {id_tces or 'N/A'}{resumo_2025_proc}",
                     categoria=cat_proc,
                     setor_demandante=setor_nome,
                     responsavel=fiscal_tit if fiscal_tit != "Não designado" else gestor,
@@ -455,7 +630,7 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM):
                     prioridade=prioridade,
                     prazo=termino_iso,
                     atualizado_em=datetime.now().isoformat(),
-                    observacoes_internas=f"Aba '{aba_nome}' (CONTROLE_CONTRATOS-2026_B.xlsm). Gestor: {gestor} | Fiscal: {fiscal_tit}. Empenho: R$ {empenho_total:,.2f} | Gasto: R$ {total_gasto:,.2f} | Saldo: R$ {saldo_empenho:,.2f}.",
+                    observacoes_internas=f"Aba '{aba_nome}' (Continuidade 2025->2026: {'Sim' if dados_2025.get('possuiHistorico2025') else 'Novo em 2026'}). Gestor: {gestor} | Fiscal: {fiscal_tit}. Empenho 2026: R$ {empenho_total:,.2f} | Gasto 2026: R$ {total_gasto:,.2f} | Saldo 2026: R$ {saldo_empenho:,.2f}.{resumo_2025_proc}",
                     pendencia_atual=pendencia,
                     restrito_tv=False,
                     link_edocs="https://edocs.es.gov.br/",

@@ -72,6 +72,7 @@ def model_to_contrato_dict(c: ContratoModel) -> dict:
         "cndsJson": getattr(c, "cnds_json", "{}") or "{}",
         "sancaoCeis": getattr(c, "sancao_ceis", "Nada Consta") or "Nada Consta",
         "execucaoMensalJson": getattr(c, "execucao_mensal_json", "[]") or "[]",
+        "dados2025Json": getattr(c, "dados_2025_json", "{}") or "{}",
         "prepostoContato": getattr(c, "preposto_contato", "") or "",
         "emailContratada": getattr(c, "email_contratada", "") or "",
         "ultimoTermo": c.ultimo_termo,

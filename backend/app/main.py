@@ -63,6 +63,7 @@ def _ensure_contrato_columns():
         "cnds_json": "TEXT",
         "sancao_ceis": "VARCHAR(255) DEFAULT 'Nada Consta'",
         "execucao_mensal_json": "TEXT",
+        "dados_2025_json": "TEXT",
         "preposto_contato": "VARCHAR(255) DEFAULT ''",
         "email_contratada": "VARCHAR(180) DEFAULT ''",
     }
@@ -379,6 +380,7 @@ def salvar_ou_atualizar_contrato(
         existente.cnds_json = payload.cndsJson or "{}"
         existente.sancao_ceis = payload.sancaoCeis or "Nada Consta"
         existente.execucao_mensal_json = payload.execucaoMensalJson or "[]"
+        existente.dados_2025_json = payload.dados2025Json or "{}"
         existente.preposto_contato = payload.prepostoContato or ""
         existente.email_contratada = payload.emailContratada or ""
         existente.ultimo_termo = payload.ultimoTermo
@@ -430,6 +432,7 @@ def salvar_ou_atualizar_contrato(
         cnds_json=payload.cndsJson or "{}",
         sancao_ceis=payload.sancaoCeis or "Nada Consta",
         execucao_mensal_json=payload.execucaoMensalJson or "[]",
+        dados_2025_json=payload.dados2025Json or "{}",
         preposto_contato=payload.prepostoContato or "",
         email_contratada=payload.emailContratada or "",
         ultimo_termo=payload.ultimoTermo,

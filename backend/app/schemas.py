@@ -90,6 +90,7 @@ class ContratoBaseSchema(BaseModel):
     cndsJson: Optional[str] = "{}"
     sancaoCeis: Optional[str] = "Nada Consta"
     execucaoMensalJson: Optional[str] = "[]"
+    dados2025Json: Optional[str] = "{}"
     prepostoContato: Optional[str] = ""
     emailContratada: Optional[str] = ""
     ultimoTermo: str
