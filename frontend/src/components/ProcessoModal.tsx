@@ -46,9 +46,15 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
   const [aba, setAba] = useState<'ficha' | 'auditoria'>('ficha');
   const [editando, setEditando] = useState(modoInicial !== 'detalhes');
 
-  const hojeIso = new Date().toISOString().split('T')[0];
+  const obterDataLocalIso = () => {
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
 
-  const [form, setForm] = useState<ProcessoSLC>({
+  const [form, setForm] = useState<ProcessoSLC>(() => ({
     id: '',
     codigoInterno: '',
     numeroEdocs: '',
@@ -57,7 +63,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
     categoria: CATEGORIAS_SLC[0],
     setorDemandante: SETORES_DEMANDANTES[0],
     responsavel: '',
-    dataEntrada: hojeIso,
+    dataEntrada: obterDataLocalIso(),
     situacao: 'Recebido pela SLC',
     prioridade: 'Média',
     prazo: null,
@@ -66,9 +72,10 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
     pendenciaAtual: '',
     restritoTv: false,
     linkEdocs: 'https://edocs.es.gov.br/',
-  });
+  }));
 
   useEffect(() => {
+    if (!aberto) return;
     setAba('ficha');
     setEditando(modoInicial !== 'detalhes');
     if (processo && modoInicial !== 'novo') {
@@ -83,7 +90,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
         categoria: CATEGORIAS_SLC[0],
         setorDemandante: SETORES_DEMANDANTES[0],
         responsavel: '',
-        dataEntrada: hojeIso,
+        dataEntrada: obterDataLocalIso(),
         situacao: 'Recebido pela SLC',
         prioridade: 'Média',
         prazo: null,
@@ -94,7 +101,7 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
         linkEdocs: 'https://edocs.es.gov.br/',
       });
     }
-  }, [processo, modoInicial, aberto, hojeIso]);
+  }, [processo, modoInicial, aberto]);
 
   if (!aberto) return null;
 
@@ -321,6 +328,10 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                     }
                     className={inputClass}
                   >
+                    {!CATEGORIAS_SLC.includes(form.categoria) &&
+                      form.categoria && (
+                        <option value={form.categoria}>{form.categoria}</option>
+                      )}
                     {CATEGORIAS_SLC.map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -340,6 +351,12 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
                     }
                     className={inputClass}
                   >
+                    {!SETORES_DEMANDANTES.includes(form.setorDemandante) &&
+                      form.setorDemandante && (
+                        <option value={form.setorDemandante}>
+                          {form.setorDemandante}
+                        </option>
+                      )}
                     {SETORES_DEMANDANTES.map((s) => (
                       <option key={s} value={s}>
                         {s}
@@ -553,7 +570,15 @@ export const ProcessoModal: React.FC<ProcessoModalProps> = ({
             {modoInicial !== 'novo' && onExcluir && processo && (
               <button
                 type="button"
-                onClick={() => onExcluir(processo.id)}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Confirma a exclusão do processo ${processo.numeroEdocs}?`
+                    )
+                  ) {
+                    onExcluir(processo.id);
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-300"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Excluir processo

@@ -60,8 +60,8 @@ def garantir_colunas_mysql(mysql_engine):
         "fiscais_adicionais": "TEXT",
         "cnds_json": "TEXT",
         "sancao_ceis": "VARCHAR(255) DEFAULT 'Nada Consta'",
-        "execucao_mensal_json": "TEXT",
-        "dados_2025_json": "TEXT",
+        "execucao_mensal_json": "MEDIUMTEXT",
+        "dados_2025_json": "MEDIUMTEXT",
         "preposto_contato": "VARCHAR(255) DEFAULT ''",
         "email_contratada": "VARCHAR(180) DEFAULT ''",
     }
@@ -71,6 +71,42 @@ def garantir_colunas_mysql(mysql_engine):
                 conn.execute(
                     text(f"ALTER TABLE contratos ADD COLUMN {col_name} {col_def}")
                 )
+        try:
+            conn.execute(
+                text(
+                    "ALTER TABLE contratos "
+                    "MODIFY COLUMN numero_contrato VARCHAR(60) NOT NULL, "
+                    "MODIFY COLUMN numero_edocs VARCHAR(60) NOT NULL, "
+                    "MODIFY COLUMN empresa_contratada VARCHAR(220) NOT NULL, "
+                    "MODIFY COLUMN cnpj VARCHAR(60) NOT NULL, "
+                    "MODIFY COLUMN modalidade_contratacao VARCHAR(60) DEFAULT '', "
+                    "MODIFY COLUMN valor_global DECIMAL(15, 2) NOT NULL DEFAULT 0.00, "
+                    "MODIFY COLUMN total_gasto DECIMAL(15, 2) DEFAULT 0.00, "
+                    "MODIFY COLUMN saldo_disponivel DECIMAL(15, 2) NOT NULL DEFAULT 0.00, "
+                    "MODIFY COLUMN media_mensal DECIMAL(15, 2) DEFAULT 0.00, "
+                    "MODIFY COLUMN valor_rpps DECIMAL(15, 2) DEFAULT 0.00, "
+                    "MODIFY COLUMN ne_rpps VARCHAR(255) DEFAULT '', "
+                    "MODIFY COLUMN valor_fps DECIMAL(15, 2) DEFAULT 0.00, "
+                    "MODIFY COLUMN ne_fps VARCHAR(255) DEFAULT '', "
+                    "MODIFY COLUMN optante_simples VARCHAR(30) DEFAULT 'N', "
+                    "MODIFY COLUMN retencao_ir VARCHAR(60) DEFAULT '', "
+                    "MODIFY COLUMN gestor_contrato VARCHAR(140) NOT NULL, "
+                    "MODIFY COLUMN fiscal_titular VARCHAR(140) NOT NULL, "
+                    "MODIFY COLUMN fiscal_suplente VARCHAR(140) NOT NULL, "
+                    "MODIFY COLUMN cnds_json MEDIUMTEXT, "
+                    "MODIFY COLUMN execucao_mensal_json MEDIUMTEXT, "
+                    "MODIFY COLUMN dados_2025_json MEDIUMTEXT"
+                )
+            )
+            if "processos" in inspector.get_table_names():
+                conn.execute(
+                    text(
+                        "ALTER TABLE processos "
+                        "MODIFY COLUMN numero_edocs VARCHAR(60) NOT NULL"
+                    )
+                )
+        except Exception:
+            pass
 
 
 def migrar_sqlite_para_mysql():

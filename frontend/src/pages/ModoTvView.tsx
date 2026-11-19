@@ -86,6 +86,17 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
   const [ultimaSincronizacao, setUltimaSincronizacao] = useState<Date>(new Date());
   const [simulandoFalhaRede, setSimulandoFalhaRede] = useState<boolean>(false);
 
+  const barraProgressoRef = React.useRef<HTMLDivElement | null>(null);
+  const acumuladoMsRef = React.useRef<number>(0);
+
+  const resetarProgressoBarra = React.useCallback(() => {
+    acumuladoMsRef.current = 0;
+    setSegundosDecorridos(0);
+    if (barraProgressoRef.current) {
+      barraProgressoRef.current.style.transform = 'scaleX(0)';
+    }
+  }, []);
+
   const qtdRestritosOcultos = processos.filter((p) => p.restritoTv).length;
 
   // Ordena todos os contratos pela data de término (exatamente como a aba "vigentes")
@@ -162,17 +173,15 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
       .slice(0, 8);
   }, [contratos]);
 
-  // Função para avançar o ciclo (se estiver na tela 2, percorre todas as páginas de contratos antes de ir para a tela 3)
-  const avancarCicloTv = () => {
-    setTelaAtual((tAtual) => {
-      if (tAtual === 1 && paginaContratos + 1 < totalPaginasContratos) {
-        setPaginaContratos((p) => p + 1);
-        return 1;
-      }
+  // Função pura para avançar o ciclo (se estiver na tela 2, percorre todas as páginas de contratos antes de ir para a tela 3)
+  const avancarCicloTv = React.useCallback(() => {
+    if (telaAtual === 1 && paginaContratos + 1 < totalPaginasContratos) {
+      setPaginaContratos(paginaContratos + 1);
+    } else {
       setPaginaContratos(0);
-      return (tAtual + 1) % 3;
-    });
-  };
+      setTelaAtual((telaAtual + 1) % 3);
+    }
+  }, [telaAtual, paginaContratos, totalPaginasContratos]);
 
   // Tecla ESC para sair do modo TV e setas para navegar
   useEffect(() => {
@@ -180,7 +189,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
       if (e.key === 'Escape') onSairModoTv();
       if (e.key === 'ArrowRight') {
         avancarCicloTv();
-        setSegundosDecorridos(0);
+        resetarProgressoBarra();
       }
       if (e.key === ' ') {
         e.preventDefault();
@@ -189,38 +198,60 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, [onSairModoTv, avancarCicloTv, resetarProgressoBarra]);
 
-  // Temporizador de alternância automática
+  const intervaloEfetivo = Math.max(5, configTv.intervaloSegundos || 20);
+  const intervaloMs = intervaloEfetivo * 1000;
+
+  // Animação fluida a 60/120fps direto na GPU via requestAnimationFrame (sem re-renderizar o React a cada frame)
   useEffect(() => {
     if (pausado) return;
-    const timer = setInterval(() => {
-      setSegundosDecorridos((prev) => {
-        if (prev + 1 >= configTv.intervaloSegundos) {
-          avancarCicloTv();
-          if (!simulandoFalhaRede) {
-            setUltimaSincronizacao(new Date());
-          }
-          return 0;
-        }
-        return prev + 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [pausado, configTv.intervaloSegundos, simulandoFalhaRede, paginaContratos, totalPaginasContratos]);
+    let frameId: number;
+    let ultimoTimestamp = performance.now();
 
-  const progressoPct = Math.min(
-    100,
-    Math.round((segundosDecorridos / configTv.intervaloSegundos) * 100)
-  );
+    const loop = (agora: number) => {
+      const delta = agora - ultimoTimestamp;
+      ultimoTimestamp = agora;
+      acumuladoMsRef.current += delta;
+
+      const proporcao = Math.min(1, acumuladoMsRef.current / intervaloMs);
+      if (barraProgressoRef.current) {
+        barraProgressoRef.current.style.transform = `scaleX(${proporcao})`;
+      }
+
+      const segAtual = Math.min(
+        intervaloEfetivo,
+        Math.floor(acumuladoMsRef.current / 1000)
+      );
+      setSegundosDecorridos((prev) => (prev !== segAtual ? segAtual : prev));
+
+      if (acumuladoMsRef.current >= intervaloMs) {
+        acumuladoMsRef.current = 0;
+        setSegundosDecorridos(0);
+        if (barraProgressoRef.current) {
+          barraProgressoRef.current.style.transform = 'scaleX(0)';
+        }
+        avancarCicloTv();
+        if (!simulandoFalhaRede) {
+          setUltimaSincronizacao(new Date());
+        }
+      }
+
+      frameId = requestAnimationFrame(loop);
+    };
+
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, [pausado, intervaloMs, intervaloEfetivo, avancarCicloTv, simulandoFalhaRede]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-950 text-slate-100">
-      {/* Barra de progresso da rotação da TV */}
-      <div className="h-1.5 w-full bg-slate-900">
+      {/* Barra de progresso 60fps acelerada por GPU (scaleX) sem lag e sem delay ao pausar/retomar */}
+      <div className="h-1.5 w-full overflow-hidden bg-slate-900">
         <div
-          className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
-          style={{ width: `${progressoPct}%` }}
+          ref={barraProgressoRef}
+          className="h-full w-full origin-left bg-blue-500 will-change-transform"
+          style={{ transform: 'scaleX(0)' }}
         />
       </div>
 
@@ -279,7 +310,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 onClick={() => {
                   setTelaAtual(t.indice);
                   setPaginaContratos(0);
-                  setSegundosDecorridos(0);
+                  resetarProgressoBarra();
                 }}
                 className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition ${
                   telaAtual === t.indice
@@ -297,7 +328,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               <button
                 onClick={() => {
                   setPaginaContratos((p) => (p - 1 + totalPaginasContratos) % totalPaginasContratos);
-                  setSegundosDecorridos(0);
+                  resetarProgressoBarra();
                 }}
                 className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white"
                 title="Página anterior de contratos"
@@ -310,7 +341,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               <button
                 onClick={() => {
                   setPaginaContratos((p) => (p + 1) % totalPaginasContratos);
-                  setSegundosDecorridos(0);
+                  resetarProgressoBarra();
                 }}
                 className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-white"
                 title="Próxima página de contratos"
@@ -331,7 +362,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               </>
             ) : (
               <>
-                <Pause className="h-4 w-4 text-amber-400" /> Pausar ({configTv.intervaloSegundos - segundosDecorridos}s)
+                <Pause className="h-4 w-4 text-amber-400" /> Pausar ({Math.max(0, intervaloEfetivo - segundosDecorridos)}s)
               </>
             )}
           </button>
@@ -339,7 +370,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
           <button
             onClick={() => {
               avancarCicloTv();
-              setSegundosDecorridos(0);
+              resetarProgressoBarra();
             }}
             title="Avançar (seta direita)"
             className="rounded-xl border border-slate-700 bg-slate-800 p-2 text-slate-200 hover:bg-slate-700"
@@ -354,7 +385,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 ...configTv,
                 intervaloSegundos: Number(e.target.value),
               });
-              setSegundosDecorridos(0);
+              resetarProgressoBarra();
             }}
             className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-200"
           >
@@ -451,35 +482,24 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 Distribuição dos contratos vigentes por setor solicitante (IPAJM)
               </h2>
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {distribuicaoSetores.map((item) => {
-                  const pct = Math.round(
-                    (item.qtd / Math.max(1, contratos.length)) * 100
-                  );
-                  return (
-                    <div
-                      key={item.setor}
-                      className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-extrabold text-blue-400">
-                          {item.setor}
-                        </span>
-                        <span className="text-2xl font-black text-white">
-                          {item.qtd} contr.
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-slate-400">
-                        Empenhado: {formatarMoeda(item.empenho)}
-                      </div>
-                      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
-                        <div
-                          className="h-full rounded-full bg-blue-500"
-                          style={{ width: `${Math.max(pct, 8)}%` }}
-                        />
-                      </div>
+                {distribuicaoSetores.map((item) => (
+                  <div
+                    key={item.setor}
+                    className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-extrabold text-blue-400">
+                        {item.setor}
+                      </span>
+                      <span className="text-2xl font-black text-white">
+                        {item.qtd} contr.
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="mt-1.5 text-xs text-slate-400">
+                      Total empenhado: {formatarMoeda(item.empenho)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

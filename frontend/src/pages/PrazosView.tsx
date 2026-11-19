@@ -49,7 +49,7 @@ export const PrazosView: React.FC<PrazosViewProps> = ({
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Regras de alerta de prazos e inatividade interna (M4)
+              Regras de alerta de prazos e inatividade interna (M5)
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               Diferencia ausência de atualização interna no SLC digital de movimentação

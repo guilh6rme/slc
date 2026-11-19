@@ -317,11 +317,9 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM, xlsm_2025_path: str = 
 
         db = SessionLocal()
         try:
-            # Limpa contratos e processos anteriores para sincronizar com a planilha real
+            # Limpa contratos e processos na mesma transação atômica (preservando historico_alteracoes)
             db.query(ContratoModel).delete()
-            db.query(HistoricoAlteracaoModel).delete()
             db.query(ProcessoModel).delete()
-            db.commit()
 
             contratos_importados = []
             processos_importados = []
@@ -644,6 +642,9 @@ def importar_planilha_xlsm(xlsm_path: str = DEFAULT_XLSM, xlsm_2025_path: str = 
                 "contratosImportados": len(contratos_importados),
                 "processosGerados": len(processos_importados),
             }
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 

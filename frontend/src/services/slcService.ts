@@ -50,6 +50,14 @@ export function obterListaResponsaveisUnicos(processos: ProcessoSLC[]): string[]
   return Array.from(conjunto).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+export function obterHojeLocalIso(): string {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
 export async function sincronizarComBackendFastAPI(): Promise<{
   status: StatusBackendAPI;
   processos?: ProcessoSLC[];
@@ -59,7 +67,7 @@ export async function sincronizarComBackendFastAPI(): Promise<{
 }> {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1800);
+    const timer = setTimeout(() => controller.abort(), 2500);
     const healthRes = await fetch(`${API_BASE_URL}/api/health`, {
       signal: controller.signal,
     });
@@ -77,11 +85,21 @@ export async function sincronizarComBackendFastAPI(): Promise<{
       fetch(`${API_BASE_URL}/api/tv/painel`),
     ]);
 
-    const processos = (await procRes.json()) as ProcessoSLC[];
-    const contratos = (await contRes.json()) as ContratoSLC[];
-    const historico = (await histRes.json()) as HistoricoAlteracao[];
+    if (!procRes.ok || !contRes.ok || !histRes.ok || !tvRes.ok) {
+      throw new Error('Falha ao carregar coleções da API FastAPI');
+    }
+
+    const procJson = await procRes.json();
+    const contJson = await contRes.json();
+    const histJson = await histRes.json();
     const tvData = await tvRes.json();
-    const configTv = tvData.configTv as ConfiguracaoTV;
+
+    const processos = Array.isArray(procJson) ? (procJson as ProcessoSLC[]) : [];
+    const contratos = Array.isArray(contJson) ? (contJson as ContratoSLC[]) : [];
+    const historico = Array.isArray(histJson)
+      ? (histJson as HistoricoAlteracao[])
+      : [];
+    const configTv = (tvData?.configTv || CONFIG_TV_INICIAL) as ConfiguracaoTV;
 
     salvarProcessos(processos);
     salvarContratos(contratos);
@@ -114,74 +132,92 @@ export async function persistirProcessoNoBackend(
   processo: ProcessoSLC,
   isNovo: boolean,
   usuarioAutor: string
-): Promise<void> {
+): Promise<boolean> {
   try {
     const url = isNovo
       ? `${API_BASE_URL}/api/processos?usuario_autor=${encodeURIComponent(usuarioAutor)}`
       : `${API_BASE_URL}/api/processos/${encodeURIComponent(processo.id)}?usuario_autor=${encodeURIComponent(usuarioAutor)}`;
-    await fetch(url, {
+    const res = await fetch(url, {
       method: isNovo ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(processo),
     });
+    return res.ok;
   } catch {
-    // Fallback local
+    return false;
   }
 }
 
-export async function excluirProcessoNoBackend(processoId: string): Promise<void> {
+export async function excluirProcessoNoBackend(
+  processoId: string
+): Promise<boolean> {
   try {
-    await fetch(`${API_BASE_URL}/api/processos/${encodeURIComponent(processoId)}`, {
-      method: 'DELETE',
-    });
+    const res = await fetch(
+      `${API_BASE_URL}/api/processos/${encodeURIComponent(processoId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    return res.ok;
   } catch {
-    // Fallback local
+    return false;
   }
 }
 
 export async function persistirContratoNoBackend(
   contrato: ContratoSLC
-): Promise<void> {
+): Promise<boolean> {
   try {
-    await fetch(`${API_BASE_URL}/api/contratos`, {
+    const res = await fetch(`${API_BASE_URL}/api/contratos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(contrato),
     });
+    return res.ok;
   } catch {
-    // Fallback local
+    return false;
   }
 }
 
-export async function excluirContratoNoBackend(contratoId: string): Promise<void> {
+export async function excluirContratoNoBackend(
+  contratoId: string
+): Promise<boolean> {
   try {
-    await fetch(`${API_BASE_URL}/api/contratos/${encodeURIComponent(contratoId)}`, {
-      method: 'DELETE',
-    });
+    const res = await fetch(
+      `${API_BASE_URL}/api/contratos/${encodeURIComponent(contratoId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    return res.ok;
   } catch {
-    // Fallback local
+    return false;
   }
 }
 
 export async function persistirConfigTvNoBackend(
   config: ConfiguracaoTV
-): Promise<void> {
+): Promise<boolean> {
   try {
-    await fetch(`${API_BASE_URL}/api/tv/config`, {
+    const res = await fetch(`${API_BASE_URL}/api/tv/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
+    return res.ok;
   } catch {
-    // Fallback local
+    return false;
   }
 }
 
 export function calcularDiasAtePrazo(prazo: string | null): number | null {
   if (!prazo) return null;
+  const isoMatch = prazo.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoMatch)) return null;
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  const dataPrazo = new Date(prazo + 'T00:00:00');
+  const dataPrazo = new Date(isoMatch + 'T00:00:00');
+  if (Number.isNaN(dataPrazo.getTime())) return null;
   const diffMs = dataPrazo.getTime() - hoje.getTime();
   return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }
@@ -189,12 +225,13 @@ export function calcularDiasAtePrazo(prazo: string | null): number | null {
 export function calcularDiasSemAtualizacao(atualizadoEm: string): number {
   const agora = new Date();
   const dataAtu = new Date(atualizadoEm);
+  if (Number.isNaN(dataAtu.getTime())) return 0;
   const diffMs = agora.getTime() - dataAtu.getTime();
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 export function obterStatusPrazo(
-  processo: ProcessoSLC,
+  processo: Pick<ProcessoSLC, 'prazo' | 'situacao'>,
   diasAlertaPrazoProximo = 7
 ): StatusPrazo {
   if (processo.situacao === 'Concluído') return 'CONCLUIDO';
@@ -209,28 +246,38 @@ export function carregarProcessos(): ProcessoSLC[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PROCESSOS);
     if (!raw) return [];
-    return JSON.parse(raw) as ProcessoSLC[];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ProcessoSLC[]) : [];
   } catch {
     return [];
   }
 }
 
 export function salvarProcessos(processos: ProcessoSLC[]): void {
-  localStorage.setItem(STORAGE_KEYS.PROCESSOS, JSON.stringify(processos));
+  try {
+    localStorage.setItem(STORAGE_KEYS.PROCESSOS, JSON.stringify(processos));
+  } catch {
+    // Ignorar falha de quota do storage
+  }
 }
 
 export function carregarHistorico(): HistoricoAlteracao[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.HISTORICO);
     if (!raw) return [];
-    return JSON.parse(raw) as HistoricoAlteracao[];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as HistoricoAlteracao[]) : [];
   } catch {
     return [];
   }
 }
 
 export function salvarHistorico(historico: HistoricoAlteracao[]): void {
-  localStorage.setItem(STORAGE_KEYS.HISTORICO, JSON.stringify(historico));
+  try {
+    localStorage.setItem(STORAGE_KEYS.HISTORICO, JSON.stringify(historico));
+  } catch {
+    // Ignorar falha de quota do storage
+  }
 }
 
 export function carregarConfigTV(): ConfiguracaoTV {
@@ -247,21 +294,30 @@ export function carregarConfigTV(): ConfiguracaoTV {
 }
 
 export function salvarConfigTV(config: ConfiguracaoTV): void {
-  localStorage.setItem(STORAGE_KEYS.CONFIG_TV, JSON.stringify(config));
+  try {
+    localStorage.setItem(STORAGE_KEYS.CONFIG_TV, JSON.stringify(config));
+  } catch {
+    // Ignorar falha de quota do storage
+  }
 }
 
 export function carregarContratos(): ContratoSLC[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CONTRATOS);
     if (!raw) return [];
-    return JSON.parse(raw) as ContratoSLC[];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ContratoSLC[]) : [];
   } catch {
     return [];
   }
 }
 
 export function salvarContratos(contratos: ContratoSLC[]): void {
-  localStorage.setItem(STORAGE_KEYS.CONTRATOS, JSON.stringify(contratos));
+  try {
+    localStorage.setItem(STORAGE_KEYS.CONTRATOS, JSON.stringify(contratos));
+  } catch {
+    // Ignorar falha de quota do storage
+  }
 }
 
 export function exportarDadosParaCsv(
@@ -270,8 +326,12 @@ export function exportarDadosParaCsv(
   linhas: Array<Array<string | number>>
 ): void {
   const escaparCelula = (valor: string | number) => {
-    const texto = String(valor ?? '').replace(/"/g, '""');
-    return `"${texto}"`;
+    let texto = String(valor ?? '');
+    // Neutraliza CSV / Formula Injection (=, +, -, @, \t, \r) no Excel
+    if (/^[=+\-@\t\r]/.test(texto)) {
+      texto = `'${texto}`;
+    }
+    return `"${texto.replace(/"/g, '""')}"`;
   };
 
   const conteudo = [

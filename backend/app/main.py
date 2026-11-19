@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from .config import CORS_ALLOW_ALL, CORS_ORIGINS
 from .database import Base, engine, get_db, obter_info_banco
 from .models import (
     ConfiguracaoPainelModel,
@@ -36,34 +37,36 @@ def _ensure_contrato_columns():
     if "contratos" not in inspector.get_table_names():
         return
     existing_cols = {c["name"] for c in inspector.get_columns("contratos")}
+    is_mysql = engine.dialect.name == "mysql"
+    text_type = "MEDIUMTEXT" if is_mysql else "TEXT"
     new_cols = {
         "processo_pagamento": "VARCHAR(60) DEFAULT ''",
         "id_tces": "VARCHAR(80) DEFAULT ''",
         "aba_planilha": "VARCHAR(40) DEFAULT ''",
         "grupo_planilha": "VARCHAR(20) DEFAULT 'S'",
         "razao_social": "VARCHAR(255) DEFAULT ''",
-        "objeto_completo": "TEXT",
-        "modalidade_contratacao": "VARCHAR(40) DEFAULT ''",
-        "total_gasto": "FLOAT DEFAULT 0.0",
-        "media_mensal": "FLOAT DEFAULT 0.0",
+        "objeto_completo": text_type,
+        "modalidade_contratacao": "VARCHAR(60) DEFAULT ''",
+        "total_gasto": "DECIMAL(15, 2) DEFAULT 0.00",
+        "media_mensal": "DECIMAL(15, 2) DEFAULT 0.00",
         "reforco_empenho": "VARCHAR(60) DEFAULT ''",
-        "valor_rpps": "FLOAT DEFAULT 0.0",
-        "ne_rpps": "VARCHAR(120) DEFAULT ''",
-        "valor_fps": "FLOAT DEFAULT 0.0",
-        "ne_fps": "VARCHAR(120) DEFAULT ''",
+        "valor_rpps": "DECIMAL(15, 2) DEFAULT 0.00",
+        "ne_rpps": "VARCHAR(255) DEFAULT ''",
+        "valor_fps": "DECIMAL(15, 2) DEFAULT 0.00",
+        "ne_fps": "VARCHAR(255) DEFAULT ''",
         "duracao_mm_max": "VARCHAR(30) DEFAULT ''",
         "data_duracao_maxima": "VARCHAR(20) DEFAULT ''",
-        "optante_simples": "VARCHAR(10) DEFAULT 'N'",
+        "optante_simples": "VARCHAR(30) DEFAULT 'N'",
         "regra_pagamento": "VARCHAR(30) DEFAULT ''",
-        "retencao_ir": "VARCHAR(15) DEFAULT ''",
+        "retencao_ir": "VARCHAR(60) DEFAULT ''",
         "modalidade_garantia": "VARCHAR(40) DEFAULT ''",
         "validade_garantia": "VARCHAR(40) DEFAULT ''",
         "gestor_suplente": "VARCHAR(140) DEFAULT ''",
-        "fiscais_adicionais": "TEXT",
-        "cnds_json": "TEXT",
+        "fiscais_adicionais": text_type,
+        "cnds_json": text_type,
         "sancao_ceis": "VARCHAR(255) DEFAULT 'Nada Consta'",
-        "execucao_mensal_json": "TEXT",
-        "dados_2025_json": "TEXT",
+        "execucao_mensal_json": text_type,
+        "dados_2025_json": text_type,
         "preposto_contato": "VARCHAR(255) DEFAULT ''",
         "email_contratada": "VARCHAR(180) DEFAULT ''",
     }
@@ -71,6 +74,45 @@ def _ensure_contrato_columns():
         for col_name, col_def in new_cols.items():
             if col_name not in existing_cols:
                 conn.execute(text(f"ALTER TABLE contratos ADD COLUMN {col_name} {col_def}"))
+
+        # No MySQL, garante precisão DECIMAL(15,2) para valores financeiros e larguras seguras
+        if is_mysql:
+            try:
+                conn.execute(
+                    text(
+                        "ALTER TABLE contratos "
+                        "MODIFY COLUMN numero_contrato VARCHAR(60) NOT NULL, "
+                        "MODIFY COLUMN numero_edocs VARCHAR(60) NOT NULL, "
+                        "MODIFY COLUMN empresa_contratada VARCHAR(220) NOT NULL, "
+                        "MODIFY COLUMN cnpj VARCHAR(60) NOT NULL, "
+                        "MODIFY COLUMN modalidade_contratacao VARCHAR(60) DEFAULT '', "
+                        "MODIFY COLUMN valor_global DECIMAL(15, 2) NOT NULL DEFAULT 0.00, "
+                        "MODIFY COLUMN total_gasto DECIMAL(15, 2) DEFAULT 0.00, "
+                        "MODIFY COLUMN saldo_disponivel DECIMAL(15, 2) NOT NULL DEFAULT 0.00, "
+                        "MODIFY COLUMN media_mensal DECIMAL(15, 2) DEFAULT 0.00, "
+                        "MODIFY COLUMN valor_rpps DECIMAL(15, 2) DEFAULT 0.00, "
+                        "MODIFY COLUMN ne_rpps VARCHAR(255) DEFAULT '', "
+                        "MODIFY COLUMN valor_fps DECIMAL(15, 2) DEFAULT 0.00, "
+                        "MODIFY COLUMN ne_fps VARCHAR(255) DEFAULT '', "
+                        "MODIFY COLUMN optante_simples VARCHAR(30) DEFAULT 'N', "
+                        "MODIFY COLUMN retencao_ir VARCHAR(60) DEFAULT '', "
+                        "MODIFY COLUMN gestor_contrato VARCHAR(140) NOT NULL, "
+                        "MODIFY COLUMN fiscal_titular VARCHAR(140) NOT NULL, "
+                        "MODIFY COLUMN fiscal_suplente VARCHAR(140) NOT NULL, "
+                        "MODIFY COLUMN cnds_json MEDIUMTEXT, "
+                        "MODIFY COLUMN execucao_mensal_json MEDIUMTEXT, "
+                        "MODIFY COLUMN dados_2025_json MEDIUMTEXT"
+                    )
+                )
+                if "processos" in inspector.get_table_names():
+                    conn.execute(
+                        text(
+                            "ALTER TABLE processos "
+                            "MODIFY COLUMN numero_edocs VARCHAR(60) NOT NULL"
+                        )
+                    )
+            except Exception:
+                pass
 
 
 # Cria as tabelas no banco (MySQL ou banco local) e garante evolução de colunas
@@ -89,8 +131,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=not CORS_ALLOW_ALL,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -212,7 +254,10 @@ def atualizar_processo(
         ("Prioridade", existente.prioridade, payload.prioridade),
         ("Prazo", existente.prazo or "—", payload.prazo or "—"),
         ("Categoria", existente.categoria, payload.categoria),
+        ("Setor Demandante", existente.setor_demandante, payload.setorDemandante),
         ("Assunto", existente.assunto, payload.assunto),
+        ("Pendência Atual", existente.pendencia_atual or "—", payload.pendenciaAtual or "—"),
+        ("Observações Internas", existente.observacoes_internas or "—", payload.observacoesInternas or "—"),
         (
             "Visibilidade na TV",
             "Oculto na TV" if existente.restrito_tv else "Visível na TV",
@@ -493,14 +538,18 @@ def listar_historico(
 )
 def obter_painel_tv(db: Session = Depends(get_db)):
     cfg = db.query(ConfiguracaoPainelModel).first()
-    if not cfg:
-        cfg = ConfiguracaoPainelModel(id=1)
-        db.add(cfg)
-        db.commit()
-        db.refresh(cfg)
+    cfg_schema = (
+        ConfiguracaoTVSchema(**model_to_config_dict(cfg))
+        if cfg
+        else ConfiguracaoTVSchema()
+    )
 
-    todos = db.query(ProcessoModel).all()
-    restritos_count = sum(1 for p in todos if p.restrito_tv)
+    restritos_count = (
+        db.query(ProcessoModel).filter(ProcessoModel.restrito_tv.is_(True)).count()
+    )
+    visiveis = (
+        db.query(ProcessoModel).filter(ProcessoModel.restrito_tv.is_(False)).all()
+    )
     publicos = [
         ProcessoPublicoTVSchema(
             id=p.id,
@@ -509,20 +558,19 @@ def obter_painel_tv(db: Session = Depends(get_db)):
             assunto=p.assunto,
             categoria=p.categoria,
             setorDemandante=p.setor_demandante,
-            responsavel=p.responsavel if cfg.exibir_responsavel_tv else None,
+            responsavel=p.responsavel if cfg_schema.exibirResponsavelTv else None,
             situacao=p.situacao,
             prioridade=p.prioridade,
             prazo=p.prazo,
             atualizadoEm=p.atualizado_em,
             pendenciaAtual=p.pendencia_atual or "",
         )
-        for p in todos
-        if not p.restrito_tv
+        for p in visiveis
     ]
 
     return PainelTVResponseSchema(
         sincronizadoEm=datetime.now().isoformat(),
-        configTv=ConfiguracaoTVSchema(**model_to_config_dict(cfg)),
+        configTv=cfg_schema,
         totalProcessosRestritosOcultos=restritos_count,
         processosPublicos=publicos,
     )

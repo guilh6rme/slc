@@ -340,22 +340,31 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   // ============================================================================
   // DADOS DO MAPA DE EXECUÇÃO MENSAL JAN-DEZ (MODO 2)
   // ============================================================================
+  const contratosBaseAno = useMemo(() => {
+    if (anoMatriz === '2025') {
+      return contratosFiltradosBase.filter(
+        (c) => parseDados2025Contrato(c).possuiHistorico2025
+      );
+    }
+    return contratosFiltradosBase;
+  }, [contratosFiltradosBase, anoMatriz]);
+
   const resumoExecucaoMensal = useMemo(() => {
-    const totalEmpenhado = contratosFiltradosBase.reduce((acc, c) => {
+    const totalEmpenhado = contratosBaseAno.reduce((acc, c) => {
       if (anoMatriz === '2025') {
         const d25 = parseDados2025Contrato(c);
         return acc + (d25.valorEmpenhado2025 || 0);
       }
       return acc + (c.valorGlobal || 0);
     }, 0);
-    const totalPagoAno = contratosFiltradosBase.reduce((acc, c) => {
+    const totalPagoAno = contratosBaseAno.reduce((acc, c) => {
       if (anoMatriz === '2025') {
         const d25 = parseDados2025Contrato(c);
         return acc + (d25.totalGasto2025 || 0);
       }
       return acc + (c.totalGasto || 0);
     }, 0);
-    const totalSaldo = contratosFiltradosBase.reduce((acc, c) => {
+    const totalSaldo = contratosBaseAno.reduce((acc, c) => {
       if (anoMatriz === '2025') {
         const d25 = parseDados2025Contrato(c);
         return acc + (d25.saldoEmpenho2025 || 0);
@@ -366,7 +375,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     let qtdPagosNoMes = 0;
     let totalPagoNoMes = 0;
 
-    for (const c of contratosFiltradosBase) {
+    for (const c of contratosBaseAno) {
       const exec = parseExecucaoMensal(c, anoMatriz);
       const reg = exec.find(
         (x) => x.mes.toLowerCase() === mesReferencia.toLowerCase()
@@ -377,7 +386,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
       }
     }
 
-    const qtdComReforco = contratosFiltradosBase.filter(
+    const qtdComReforco = contratosBaseAno.filter(
       (c) => parseReforcoNumerico(c.reforcoEmpenho) > 0
     ).length;
 
@@ -386,18 +395,15 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
       totalPagoAno,
       totalSaldo,
       qtdPagosNoMes,
-      qtdPendentesNoMes: contratosFiltradosBase.length - qtdPagosNoMes,
+      qtdPendentesNoMes: contratosBaseAno.length - qtdPagosNoMes,
       totalPagoNoMes,
       qtdComReforco,
     };
-  }, [contratosFiltradosBase, mesReferencia, anoMatriz]);
+  }, [contratosBaseAno, mesReferencia, anoMatriz]);
 
   const contratosMatrizFiltrados = useMemo(() => {
-    return contratosFiltradosBase
+    return contratosBaseAno
       .filter((c) => {
-        if (anoMatriz === '2025' && !parseDados2025Contrato(c).possuiHistorico2025) {
-          return false;
-        }
         if (filtroExecucaoMensal === 'TODOS') return true;
         const exec = parseExecucaoMensal(c, anoMatriz);
         const m = exec.find(
@@ -417,7 +423,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
         const numB = parseInt(b.abaPlanilha || '999', 10);
         return numA - numB;
       });
-  }, [contratosFiltradosBase, filtroExecucaoMensal, mesReferencia, anoMatriz]);
+  }, [contratosBaseAno, filtroExecucaoMensal, mesReferencia, anoMatriz]);
 
   // ============================================================================
   // DADOS DO KANBAN E-DOCS POR ETAPA (MODO 3)
@@ -1054,7 +1060,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 >
                   {MESES_EXECUCAO.map((m) => (
                     <option key={m} value={m}>
-                      Mês: {m}/2026
+                      Mês: {m}/{anoMatriz}
                     </option>
                   ))}
                 </select>
@@ -1083,7 +1089,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase text-slate-400">
-                  Empenhado 2026 (RPPS + FPS)
+                  Empenhado {anoMatriz} (RPPS + FPS)
                 </span>
                 <TrendingUp className="h-4 w-4 text-blue-500" />
               </div>
@@ -1163,7 +1169,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                 }`}
               >
-                Todos ({contratosFiltradosBase.length})
+                Todos ({contratosBaseAno.length})
               </button>
               <button
                 type="button"
@@ -1481,7 +1487,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                                       }`}
                                     >
                                       <div className="font-extrabold uppercase text-slate-500">
-                                        {m}/2026
+                                        {m}/{anoMatriz}
                                       </div>
                                       <div className="mt-0.5 font-mono text-xs font-extrabold text-slate-900 dark:text-white">
                                         {val > 0 ? formatarMoedaBRL(val) : '—'}
@@ -1581,7 +1587,15 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                 <div
                   key={etapa}
                   onDragOver={(e) => handleDragOver(e, etapa)}
-                  onDragLeave={() => setColunaAlvo(null)}
+                  onDragLeave={(e) => {
+                    if (
+                      !e.currentTarget.contains(
+                        e.relatedTarget as Node | null
+                      )
+                    ) {
+                      setColunaAlvo(null);
+                    }
+                  }}
                   onDrop={(e) => handleDrop(e, etapa)}
                   className={`flex min-w-0 w-full flex-col overflow-hidden rounded-2xl border transition-all ${
                     isAlvo

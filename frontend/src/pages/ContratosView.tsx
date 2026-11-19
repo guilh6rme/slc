@@ -68,7 +68,12 @@ const MESES_PADRAO = [
 function normalizarExecucaoMensal(jsonStr?: string): ExecucaoMensalItem[] {
   let parsed: ExecucaoMensalItem[] = [];
   try {
-    if (jsonStr) parsed = JSON.parse(jsonStr);
+    if (jsonStr) {
+      const candidate = JSON.parse(jsonStr);
+      if (Array.isArray(candidate)) {
+        parsed = candidate;
+      }
+    }
   } catch {
     parsed = [];
   }
@@ -175,9 +180,6 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
   const [contratoEditando, setContratoEditando] = useState<ContratoSLC | null>(
     null
   );
-  const [mesesForm, setMesesForm] = useState<ExecucaoMensalItem[]>(() =>
-    normalizarExecucaoMensal('[]')
-  );
 
   // Modal rápido de lançamento mensal (ao clicar direto em um mês Jan..Dez)
   const [modalMesContrato, setModalMesContrato] = useState<ContratoSLC | null>(
@@ -240,14 +242,11 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
   const abrirModal = (c: ContratoSLC | null) => {
     setContratoEditando(c);
     if (c) {
-      const normalizados = normalizarExecucaoMensal(c.execucaoMensalJson);
-      setMesesForm(normalizados);
-      setForm({ ...c, execucaoMensalJson: JSON.stringify(normalizados) });
+      setForm({ ...c });
     } else {
       const proxAno = new Date();
       proxAno.setFullYear(proxAno.getFullYear() + 1);
       const vazios = normalizarExecucaoMensal('[]');
-      setMesesForm(vazios);
       setForm({
         id: `cont-${Date.now()}`,
         numeroContrato: '',
@@ -298,18 +297,6 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
       });
     }
     setModalAberto(true);
-  };
-
-  const atualizarMesNoForm = (
-    idx: number,
-    campo: keyof ExecucaoMensalItem,
-    valor: string | number
-  ) => {
-    const novaLista = mesesForm.map((item, i) =>
-      i === idx ? { ...item, [campo]: valor } : item
-    );
-    setMesesForm(novaLista);
-    setForm((prev) => recalcularTotaisContrato(prev, novaLista));
   };
 
   const abrirLancamentoMensalRapido = (c: ContratoSLC, idxMes = 0) => {
@@ -676,9 +663,10 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                   </div>
 
                   <button
-                    onClick={() =>
-                      setExpandidoId(isExpandido ? null : c.id)
-                    }
+                    onClick={() => {
+                      setAbaExercicioFicha('2026');
+                      setExpandidoId(isExpandido ? null : c.id);
+                    }}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300"
                   >
                     <BarChart3 className="h-4 w-4" />
@@ -1143,7 +1131,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
 
       {/* Modal de cadastro / Edição de contrato alinhado com a planilha */}
       {modalAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
@@ -1284,8 +1272,11 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                     value={form.valorGlobal}
                     onChange={(e) => {
                       const novoEmp = Number(e.target.value);
+                      const mesesAtuais = normalizarExecucaoMensal(
+                        form.execucaoMensalJson
+                      );
                       setForm((prev) =>
-                        recalcularTotaisContrato(prev, mesesForm, novoEmp)
+                        recalcularTotaisContrato(prev, mesesAtuais, novoEmp)
                       );
                     }}
                     className={inputClass}
@@ -1293,7 +1284,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Total gasto no ano (R$) · Auto
+                    Total gasto no ano (R$)
                   </label>
                   <input
                     type="number"
@@ -1307,7 +1298,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Saldo empenho (R$) · Auto
+                    Saldo empenho (R$)
                   </label>
                   <input
                     type="number"
@@ -1336,83 +1327,6 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                     <option value="P">P · Prorrogável</option>
                     <option value="NP">NP · Não prorrogável (nova contratação)</option>
                   </select>
-                </div>
-              </div>
-
-              {/* Grade de lançamento mensal Jan-Dez dentro do modal de edição */}
-              <div className="rounded-2xl border border-blue-200/80 bg-blue-50/30 p-4 dark:border-blue-500/20 dark:bg-blue-950/15">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                      <BarChart3 className="h-4 w-4 text-blue-600" />
-                      Execução financeira mensal 2026 (Jan – Dez)
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Ao preencher o valor de qualquer mês, o total gasto, saldo de empenho, média/mês ({formatarMoeda(form.mediaMensal || 0)}) e Reforço ({form.reforcoEmpenho || '—'}) são recalculados automaticamente.
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                  {mesesForm.map((item, idx) => (
-                    <div
-                      key={item.mes}
-                      className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-                    >
-                      <div className="mb-1.5 text-center text-[11px] font-extrabold uppercase text-blue-700 dark:text-blue-400">
-                        {item.mes}/2026
-                      </div>
-                      <div className="space-y-1.5">
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500">
-                            Valor (R$)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item.valor || ''}
-                            placeholder="0,00"
-                            onChange={(e) =>
-                              atualizarMesNoForm(
-                                idx,
-                                'valor',
-                                e.target.value === '' ? 0 : Number(e.target.value)
-                              )
-                            }
-                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500">
-                            Nº NF / RPA
-                          </label>
-                          <input
-                            type="text"
-                            value={item.nf || ''}
-                            placeholder="Ex: 4373"
-                            onChange={(e) =>
-                              atualizarMesNoForm(idx, 'nf', e.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 font-mono text-[11px] text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-semibold text-slate-500">
-                            Medição / Obs.
-                          </label>
-                          <input
-                            type="text"
-                            value={item.medicao || ''}
-                            placeholder="Ex: med05"
-                            onChange={(e) =>
-                              atualizarMesNoForm(idx, 'medicao', e.target.value)
-                            }
-                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1 text-[11px] text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -1567,7 +1481,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
         };
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
             <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
                 <div>
