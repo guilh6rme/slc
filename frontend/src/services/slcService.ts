@@ -23,9 +23,7 @@ const STORAGE_KEYS = {
   CONTRATOS: 'slc_digital_contratos_v2',
 };
 
-export const API_BASE_URL =
-  (import.meta as unknown as { env?: Record<string, string> }).env
-    ?.VITE_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export interface StatusBackendAPI {
   online: boolean;
