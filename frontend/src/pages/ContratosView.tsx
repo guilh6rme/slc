@@ -914,7 +914,7 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                               </span>
                               {dados2025.processoPagamento2025 && (
                                 <span className="font-mono text-[11px] text-amber-800 dark:text-amber-300">
-                                  · Proc. Pagto 2025: {dados2025.processoPagamento2025}
+                                  · Proc. pagto 2025: {dados2025.processoPagamento2025}
                                 </span>
                               )}
                             </div>
@@ -980,11 +980,11 @@ export const ContratosView: React.FC<ContratosViewProps> = ({
                       abaExercicioFicha === 'CONTINUA' && (
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/60 px-4 py-2.5 text-xs dark:border-indigo-500/30 dark:bg-indigo-950/25">
                           <span className="font-extrabold uppercase tracking-wider text-indigo-800 dark:text-indigo-300">
-                            Consolidado de Continuidade (2025 + 2026)
+                            Consolidado de continuidade (2025 + 2026)
                           </span>
                           <div className="flex flex-wrap items-center gap-4 text-slate-700 dark:text-slate-200">
                             <span>
-                              <strong>Empenhado Acumulado (25+26):</strong>{' '}
+                              <strong>Empenhado acumulado (25+26):</strong>{' '}
                               {formatarMoeda(
                                 (dados2025.valorEmpenhado2025 || 0) +
                                   (c.valorGlobal || 0)

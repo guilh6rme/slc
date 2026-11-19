@@ -173,6 +173,43 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
       .slice(0, 8);
   }, [contratos]);
 
+  // Indicadores consolidados de processos para o bloco "Visão geral do setor" na Tela 1
+  const resumoProcessosSetor = useMemo(() => {
+    const publicos = processos.filter((p) => !p.restritoTv);
+    const ativos = publicos.filter((p) => p.situacao !== 'Concluído').length;
+    const pendentes = publicos.filter(
+      (p) =>
+        p.situacao === 'Aguardando documentação' ||
+        p.situacao === 'Aguardando aprovação' ||
+        p.situacao === 'Em andamento externo'
+    ).length;
+    const criticos = publicos.filter((p) => {
+      if (p.situacao === 'Concluído') return false;
+      const dias = calcularDiasAtePrazo(p.prazo);
+      return (
+        p.prioridade === 'Crítica' ||
+        p.prioridade === 'Alta' ||
+        (dias !== null && dias <= 45)
+      );
+    }).length;
+    const concluidos = publicos.filter((p) => p.situacao === 'Concluído').length;
+
+    const somaBarra = Math.max(1, ativos + pendentes + concluidos);
+    const pctAtivos = Math.round((ativos / somaBarra) * 100);
+    const pctPendentes = Math.round((pendentes / somaBarra) * 100);
+    const pctConcluidos = Math.max(0, 100 - pctAtivos - pctPendentes);
+
+    return {
+      ativos,
+      pendentes,
+      criticos,
+      concluidos,
+      pctAtivos,
+      pctPendentes,
+      pctConcluidos,
+    };
+  }, [processos]);
+
   // Função pura para avançar o ciclo (se estiver na tela 2, percorre todas as páginas de contratos antes de ir para a tela 3)
   const avancarCicloTv = React.useCallback(() => {
     if (telaAtual === 1 && paginaContratos + 1 < totalPaginasContratos) {
@@ -412,7 +449,7 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
               <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-7">
                 <div className="flex items-center justify-between text-slate-400">
                   <span className="text-sm font-bold uppercase tracking-wider">
-                    Contratos vigentes
+                    Contratos (2026)
                   </span>
                   <FileSignature className="h-7 w-7 text-blue-400" />
                 </div>
@@ -472,6 +509,88 @@ export const ModoTvView: React.FC<ModoTvViewProps> = ({
                 </div>
                 <p className="mt-2 text-sm text-rose-200/80">
                   Prioridade de instrução de aditivo ou nova licitação
+                </p>
+              </div>
+            </div>
+
+            {/* Bloco central: Visão geral do setor (Processos da SLC) */}
+            <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    IPAJM / SLC DIGITAL
+                  </span>
+                  <h2 className="mt-0.5 text-xl font-bold text-white">
+                    Visão geral do setor
+                  </h2>
+                </div>
+                <Tv className="h-5 w-5 text-blue-400" />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <div className="rounded-2xl border border-slate-800/90 bg-slate-800/40 px-5 py-4">
+                  <div className="text-xs font-medium text-slate-300">
+                    Ativos
+                  </div>
+                  <div className="mt-1 text-3xl font-extrabold text-sky-400">
+                    {resumoProcessosSetor.ativos}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800/90 bg-slate-800/40 px-5 py-4">
+                  <div className="text-xs font-medium text-slate-300">
+                    Pendências (E-Docs)
+                  </div>
+                  <div className="mt-1 text-3xl font-extrabold text-amber-400">
+                    {resumoProcessosSetor.pendentes}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800/90 bg-slate-800/40 px-5 py-4">
+                  <div className="text-xs font-medium text-slate-300">
+                    Críticos
+                  </div>
+                  <div className="mt-1 text-3xl font-extrabold text-rose-400">
+                    {resumoProcessosSetor.criticos}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800/90 bg-slate-800/40 px-5 py-4">
+                  <div className="text-xs font-medium text-slate-300">
+                    Concluídos
+                  </div>
+                  <div className="mt-1 text-3xl font-extrabold text-emerald-400">
+                    {resumoProcessosSetor.concluidos}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="text-sm font-bold text-white">
+                  Distribuição de processos
+                </div>
+                <div className="mt-2.5 flex h-3.5 w-full overflow-hidden rounded-full bg-slate-950 p-0.5 gap-1">
+                  {resumoProcessosSetor.pctAtivos > 0 && (
+                    <div
+                      className="h-full rounded-l-full bg-sky-400"
+                      style={{ width: `${resumoProcessosSetor.pctAtivos}%` }}
+                    />
+                  )}
+                  {resumoProcessosSetor.pctPendentes > 0 && (
+                    <div
+                      className="h-full bg-amber-400"
+                      style={{ width: `${resumoProcessosSetor.pctPendentes}%` }}
+                    />
+                  )}
+                  {resumoProcessosSetor.pctConcluidos > 0 && (
+                    <div
+                      className="h-full rounded-r-full bg-emerald-400"
+                      style={{ width: `${resumoProcessosSetor.pctConcluidos}%` }}
+                    />
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-slate-400">
+                  Indicadores consolidados dos contratos
                 </p>
               </div>
             </div>
