@@ -93,21 +93,29 @@ export function App() {
     }, 4000);
   };
 
+  const sincronizarDados = React.useCallback(async (): Promise<boolean> => {
+    const res = await sincronizarComBackendFastAPI();
+    setStatusApi(res.status);
+    if (res.status.online) {
+      if (res.processos) setProcessos(res.processos);
+      if (res.contratos) setContratos(res.contratos);
+      if (res.historico) setHistorico(res.historico);
+      if (res.configTv) {
+        setConfigTv((prev) => ({
+          ...res.configTv!,
+          telasOcultas: res.configTv!.telasOcultas ?? prev.telasOcultas ?? [],
+        }));
+      }
+    }
+    return res.status.online;
+  }, []);
+
   useEffect(() => {
     setProcessos(carregarProcessos());
     setContratos(carregarContratos());
     setHistorico(carregarHistorico());
-
-    sincronizarComBackendFastAPI().then((res) => {
-      setStatusApi(res.status);
-      if (res.status.online) {
-        if (res.processos) setProcessos(res.processos);
-        if (res.contratos) setContratos(res.contratos);
-        if (res.historico) setHistorico(res.historico);
-        if (res.configTv) setConfigTv(res.configTv);
-      }
-    });
-  }, []);
+    sincronizarDados();
+  }, [sincronizarDados]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -255,11 +263,14 @@ export function App() {
 
   if (modoTvAtivo) {
     return (
-      <div className="dark">
+      <div className={temaEscuro ? 'dark' : ''}>
         <ModoTvView
           processos={processos}
           contratos={contratos}
           configTv={configTv}
+          temaEscuro={temaEscuro}
+          onAlternarTema={() => setTemaEscuro((v) => !v)}
+          onSincronizarDados={sincronizarDados}
           onAtualizarConfigTv={handleAtualizarConfigTv}
           onSairModoTv={() => setModoTvAtivo(false)}
         />
@@ -728,7 +739,9 @@ export function App() {
           {abaAtiva === 'dashboard' && (
             <DashboardView
               processos={processos}
+              contratos={contratos}
               configTv={configTv}
+              temaEscuro={temaEscuro}
               onSelecionarProcesso={handleAbrirModal}
               onIrParaAba={(aba) => setAbaAtiva(aba)}
             />

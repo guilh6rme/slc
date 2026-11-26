@@ -53,6 +53,7 @@ export interface ConfiguracaoTV {
   exibirResponsavelTv: boolean;
   diasAlertaInatividade: number;
   diasAlertaPrazoProximo: number;
+  telasOcultas?: number[];
 }
 
 export type StatusGarantia =
